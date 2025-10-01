@@ -1,15 +1,6 @@
 use crate::x;
 use crate::{Count, Dance, Data, Link, Opts, Solve};
 
-pub trait DanceC: Dance {
-    fn purify(&mut self, p: Link);
-    fn unpurify(&mut self, p: Link);
-}
-
-pub trait OptsC: Opts {
-    fn color(&mut self, i: Link) -> &mut Data;
-}
-
 pub fn commit<D: DanceC<O: OptsC>>(p: Link, j: Link, dance: &mut D) {
     if *dance.opts().color(p) == 0 {
         dance.cover(j);
@@ -134,6 +125,17 @@ impl ONodes {
     }
 }
 
+pub struct Problem {
+    items: x::INodes,
+    opts: ONodes,
+}
+
+impl Problem {
+    pub fn new(items: x::INodes, opts: ONodes) -> Problem {
+        Problem { items, opts }
+    }
+}
+
 impl Opts for ONodes {
     type Spec = (Count, Data);
 
@@ -159,20 +161,13 @@ impl Opts for ONodes {
     }
 }
 
+pub trait OptsC: Opts {
+    fn color(&mut self, i: Link) -> &mut Data;
+}
+
 impl OptsC for ONodes {
     fn color(&mut self, i: Link) -> &mut Data {
         &mut self.get_node(i).color
-    }
-}
-
-pub struct Problem {
-    items: x::INodes,
-    opts: ONodes,
-}
-
-impl Problem {
-    pub fn new(items: x::INodes, opts: ONodes) -> Problem {
-        Problem { items, opts }
     }
 }
 
@@ -217,6 +212,11 @@ impl Dance for Problem {
     }
 }
 
+pub trait DanceC: Dance {
+    fn purify(&mut self, p: Link);
+    fn unpurify(&mut self, p: Link);
+}
+
 impl DanceC for Problem {
     fn purify(&mut self, p: Link) {
         purify(p, self);
@@ -228,21 +228,21 @@ impl DanceC for Problem {
 }
 
 impl Solve for Problem {
-    fn enter_level(&mut self, _: Count) {}
+    fn enter_level(&mut self, _: Link, _: Count, _: Link) {}
 
-    fn prepare_to_branch(&mut self, i: Link, l: Link, xl: Link) {
+    fn prepare_to_branch(&mut self, i: Link, l: Count, xl: Link) {
         x::prepare_to_branch(self, i, l, xl);
     }
 
-    fn try_item(&mut self, i: Link, xl: Link) -> bool {
+    fn try_item(&mut self, i: Link, _: Count, xl: Link) -> bool {
         x::try_item(self, i, xl)
     }
 
-    fn try_again(&mut self, i: Link, xl: &mut Link) -> bool {
-        x::try_again(self, i, xl)
+    fn try_again(&mut self, i: Link, l: Count, xl: &mut Link) -> bool {
+        x::try_again(self, i, l, xl)
     }
 
-    fn restore_item(&mut self, i: Link) {
+    fn restore_item(&mut self, i: Link, _: Count, _: Link) {
         x::restore_item(self, i);
     }
 }

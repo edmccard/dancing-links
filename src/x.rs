@@ -93,7 +93,9 @@ pub fn try_item<S: Solve>(solve: &mut S, i: Link, xl: Link) -> bool {
     true
 }
 
-pub fn try_again<S: Solve>(solve: &mut S, i: Link, xl: &mut Link) -> bool {
+pub fn try_again<S: Solve>(
+    solve: &mut S, i: Link, l: Count, xl: &mut Link,
+) -> bool {
     let mut p = *xl - 1;
     while p != *xl {
         let j = *solve.opts().top(p);
@@ -105,7 +107,11 @@ pub fn try_again<S: Solve>(solve: &mut S, i: Link, xl: &mut Link) -> bool {
         }
     }
     *xl = *solve.opts().dlink(*xl);
-    solve.try_item(i, *xl)
+    let again = solve.try_item(i, l, *xl);
+    if !again {
+        solve.restore_item(i, l, *xl);
+    }
+    again
 }
 
 pub fn restore_item<S: Solve>(solve: &mut S, i: Link) {
@@ -147,24 +153,6 @@ impl INodes {
     }
 }
 
-impl Items for INodes {
-    fn llink(&mut self, i: Link) -> &mut Link {
-        &mut self.get_node(i).left
-    }
-
-    fn rlink(&mut self, i: Link) -> &mut Link {
-        &mut self.get_node(i).right
-    }
-
-    fn primary(&self) -> Count {
-        self.primary
-    }
-
-    fn secondary(&self) -> Count {
-        self.secondary
-    }
-}
-
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 struct ONode {
     hdr_info: Data,
@@ -201,6 +189,35 @@ impl ONodes {
     }
 }
 
+pub struct Problem {
+    items: INodes,
+    opts: ONodes,
+}
+
+impl Problem {
+    pub fn new(items: INodes, opts: ONodes) -> Problem {
+        Problem { items, opts }
+    }
+}
+
+impl Items for INodes {
+    fn llink(&mut self, i: Link) -> &mut Link {
+        &mut self.get_node(i).left
+    }
+
+    fn rlink(&mut self, i: Link) -> &mut Link {
+        &mut self.get_node(i).right
+    }
+
+    fn primary(&self) -> Count {
+        self.primary
+    }
+
+    fn secondary(&self) -> Count {
+        self.secondary
+    }
+}
+
 impl Opts for ONodes {
     type Spec = Count;
 
@@ -222,17 +239,6 @@ impl Opts for ONodes {
 
     fn set_data(&mut self, _: Link, s: Count) -> Link {
         s
-    }
-}
-
-pub struct Problem {
-    items: INodes,
-    opts: ONodes,
-}
-
-impl Problem {
-    pub fn new(items: INodes, opts: ONodes) -> Problem {
-        Problem { items, opts }
     }
 }
 
@@ -278,21 +284,21 @@ impl Dance for Problem {
 }
 
 impl Solve for Problem {
-    fn enter_level(&mut self, _: Count) {}
+    fn enter_level(&mut self, _: Link, _: Count, _: Link) {}
 
-    fn prepare_to_branch(&mut self, i: Link, l: Link, xl: Link) {
+    fn prepare_to_branch(&mut self, i: Link, l: Count, xl: Link) {
         prepare_to_branch(self, i, l, xl);
     }
 
-    fn try_item(&mut self, i: Link, xl: Link) -> bool {
+    fn try_item(&mut self, i: Link, _: Count, xl: Link) -> bool {
         try_item(self, i, xl)
     }
 
-    fn try_again(&mut self, i: Link, xl: &mut Link) -> bool {
-        try_again(self, i, xl)
+    fn try_again(&mut self, i: Link, l: Count, xl: &mut Link) -> bool {
+        try_again(self, i, l, xl)
     }
 
-    fn restore_item(&mut self, i: Link) {
+    fn restore_item(&mut self, i: Link, _: Count, _: Link) {
         restore_item(self, i);
     }
 }

@@ -1,11 +1,20 @@
 #![allow(clippy::unnecessary_cast)]
 
 pub mod c;
+pub mod m;
 pub mod x;
 
 pub type Link = usize;
 pub type Count = Link;
 pub type Data = isize;
+
+const _: () = {
+    assert!(Link::MAX as u128 <= u64::MAX as u128);
+    assert!(Count::MAX as u128 <= u64::MAX as u128);
+    assert!(Data::MAX as u128 <= u64::MAX as u128);
+    assert!(Data::MAX as u128 <= Count::MAX as u128);
+    assert!(Data::MAX as u128 <= Link::MAX as u128);
+};
 
 pub trait Dance {
     type I: Items;
@@ -98,18 +107,18 @@ pub trait Opts {
 }
 
 pub trait Solve: Dance {
-    fn enter_level(&mut self, l: Count);
-    fn prepare_to_branch(&mut self, i: Link, l: Link, xl: Link);
-    fn try_item(&mut self, i: Link, xl: Link) -> bool;
-    fn try_again(&mut self, i: Link, xl: &mut Link) -> bool;
-    fn restore_item(&mut self, i: Link);
+    fn enter_level(&mut self, i: Link, l: Count, xl: Link);
+    fn prepare_to_branch(&mut self, i: Link, l: Count, xl: Link);
+    fn try_item(&mut self, i: Link, l: Count, xl: Link) -> bool;
+    fn try_again(&mut self, i: Link, l: Count, xl: &mut Link) -> bool;
+    fn restore_item(&mut self, i: Link, l: Count, xl: Link);
 }
 
 pub struct Solver<P: Solve> {
     problem: P,
     x: Vec<Link>,
     o: Vec<isize>,
-    l: Link,
+    l: Count,
     i: Link,
     restart: bool,
 }
@@ -142,17 +151,17 @@ impl<P: Solve> Solver<P> {
                 if self.x.len() == l as usize {
                     self.x.push(0);
                 }
-                self.problem.enter_level(l);
+                self.problem.enter_level(i, l, self.x[l as usize]);
                 i = self.choose();
                 // TODO: return option from choose
                 if self.problem.branch_degree(i) != 0 {
                     self.x[l as usize] = *self.problem.opts().dlink(i);
                     self.problem.prepare_to_branch(i, l, self.x[l as usize]);
-                    if self.problem.try_item(i, self.x[l as usize]) {
+                    if self.problem.try_item(i, l, self.x[l as usize]) {
                         l += 1;
                         continue;
                     } else {
-                        self.problem.restore_item(i);
+                        self.problem.restore_item(i, l, self.x[l as usize]);
                     }
                 }
             }
@@ -163,11 +172,10 @@ impl<P: Solve> Solver<P> {
                 }
                 l -= 1;
                 i = *self.problem.opts().top(self.x[l as usize]) as Link;
-                if self.problem.try_again(i, &mut self.x[l as usize]) {
+                if self.problem.try_again(i, l, &mut self.x[l as usize]) {
                     l += 1;
                     break;
                 }
-                self.problem.restore_item(i);
             }
         }
     }
