@@ -1,4 +1,6 @@
-mod c;
+#![allow(clippy::unnecessary_cast)]
+
+pub mod c;
 pub mod x;
 
 pub type Link = usize;
@@ -21,6 +23,7 @@ pub trait Dance {
     fn branch_degree(&mut self, i: Link) -> Data;
 }
 
+#[allow(clippy::len_without_is_empty)]
 pub trait Items {
     fn llink(&mut self, i: Link) -> &mut Link;
     fn rlink(&mut self, i: Link) -> &mut Link;
@@ -130,32 +133,26 @@ impl<P: Solve> Solver<P> {
         loop {
             if self.restart {
                 self.restart = false;
+            } else if *self.problem.items().rlink(0) == 0 {
+                self.l = l;
+                self.i = i;
+                self.restart = true;
+                return true;
             } else {
-                if *self.problem.items().rlink(0) == 0 {
-                    self.l = l;
-                    self.i = i;
-                    self.restart = true;
-                    return true;
-                } else {
-                    if self.x.len() == l as usize {
-                        self.x.push(0);
-                    }
-                    self.problem.enter_level(l);
-                    i = self.choose();
-                    // TODO: return option from choose
-                    if self.problem.branch_degree(i) != 0 {
-                        self.x[l as usize] = *self.problem.opts().dlink(i);
-                        self.problem.prepare_to_branch(
-                            i,
-                            l,
-                            self.x[l as usize],
-                        );
-                        if self.problem.try_item(i, self.x[l as usize]) {
-                            l += 1;
-                            continue;
-                        } else {
-                            self.problem.restore_item(i);
-                        }
+                if self.x.len() == l as usize {
+                    self.x.push(0);
+                }
+                self.problem.enter_level(l);
+                i = self.choose();
+                // TODO: return option from choose
+                if self.problem.branch_degree(i) != 0 {
+                    self.x[l as usize] = *self.problem.opts().dlink(i);
+                    self.problem.prepare_to_branch(i, l, self.x[l as usize]);
+                    if self.problem.try_item(i, self.x[l as usize]) {
+                        l += 1;
+                        continue;
+                    } else {
+                        self.problem.restore_item(i);
                     }
                 }
             }
@@ -190,7 +187,7 @@ impl<P: Solve> Solver<P> {
         i
     }
 
-    fn find_options(&mut self) {
+    pub fn find_options(&mut self) {
         let n =
             self.problem.items().primary() + self.problem.items().secondary();
         self.o.clear();

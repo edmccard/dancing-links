@@ -109,7 +109,7 @@ pub fn try_again<S: Solve>(solve: &mut S, i: Link, xl: &mut Link) -> bool {
 }
 
 pub fn restore_item<S: Solve>(solve: &mut S, i: Link) {
-        solve.uncover(i);
+    solve.uncover(i);
 }
 
 #[derive(Copy, Clone, Debug, Default, Eq, PartialEq)]
@@ -220,7 +220,7 @@ impl Opts for ONodes {
         &mut self.get_node(i).down
     }
 
-    fn set_data(&mut self, pk: Link, s: Count) -> Link {
+    fn set_data(&mut self, _: Link, s: Count) -> Link {
         s
     }
 }
@@ -293,7 +293,7 @@ impl Solve for Problem {
     }
 
     fn restore_item(&mut self, i: Link) {
-	restore_item(self, i);
+        restore_item(self, i);
     }
 }
 

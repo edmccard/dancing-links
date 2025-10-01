@@ -1,5 +1,5 @@
 use crate::x;
-use crate::{Count, Dance, Data, Items, Link, Opts, Solve};
+use crate::{Count, Dance, Data, Link, Opts, Solve};
 
 pub trait DanceC: Dance {
     fn purify(&mut self, p: Link);
@@ -219,31 +219,31 @@ impl Dance for Problem {
 
 impl DanceC for Problem {
     fn purify(&mut self, p: Link) {
-	purify(p, self);
+        purify(p, self);
     }
 
     fn unpurify(&mut self, p: Link) {
-	unpurify(p, self);
+        unpurify(p, self);
     }
 }
 
 impl Solve for Problem {
-    fn enter_level(&mut self, l: Count) {}
+    fn enter_level(&mut self, _: Count) {}
 
     fn prepare_to_branch(&mut self, i: Link, l: Link, xl: Link) {
-	x::prepare_to_branch(self, i, l, xl);
+        x::prepare_to_branch(self, i, l, xl);
     }
 
     fn try_item(&mut self, i: Link, xl: Link) -> bool {
-	x::try_item(self, i, xl)
+        x::try_item(self, i, xl)
     }
 
     fn try_again(&mut self, i: Link, xl: &mut Link) -> bool {
-	x::try_again(self, i, xl)
+        x::try_again(self, i, xl)
     }
 
     fn restore_item(&mut self, i: Link) {
-	x::restore_item(self, i);
+        x::restore_item(self, i);
     }
 }
 
@@ -294,23 +294,23 @@ mod tests {
 
     #[test]
     fn test_xcc() {
-	use crate::Solver;
-	let items = x::INodes::new(3, 2);
-	let os: Vec<Vec<(Count, Data)>> = vec![
+        use crate::Solver;
+        let items = x::INodes::new(3, 2);
+        let os: Vec<Vec<(Count, Data)>> = vec![
             vec![(0, 0), (1, 0), (3, 0), (4, 1)],
             vec![(0, 0), (2, 0), (3, 1), (4, 0)],
             vec![(0, 0), (3, 2)],
             vec![(1, 0), (3, 1)],
             vec![(2, 0), (4, 2)],
         ];
-	let opts = ONodes::new(5, 5, 14, os);
-	let items_init = items.clone();
+        let opts = ONodes::new(5, 5, 14, os);
+        let items_init = items.clone();
         let opts_init = opts.clone();
         let problem = Problem::new(items, opts);
-	let mut solver = Solver::new(problem);
+        let mut solver = Solver::new(problem);
         let mut solutions: Vec<Vec<isize>> = Vec::new();
-	let mut expected = vec![vec![1, 3]];
-	let mut i = 0;
+        let mut expected = vec![vec![1, 3]];
+        let mut i = 0;
         while solver.next_solution() {
             assert!(i <= expected.len(), "too many solutions");
             solver.find_options();

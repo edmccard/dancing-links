@@ -1,7 +1,7 @@
 use criterion::{Criterion, criterion_group, criterion_main};
 
-use dlx::{Count, Solver, Solve};
 use dlx::x::{INodes, ONodes, Problem};
+use dlx::{Count, Solve, Solver};
 
 fn bench_dance(c: &mut Criterion) {
     let items = INodes::new(7, 0);
@@ -26,7 +26,7 @@ fn bench_dance(c: &mut Criterion) {
 fn solve<S: Solve>(solver: &mut Solver<S>) -> usize {
     let mut i = 0;
     while solver.next_solution() {
-	i += 1;
+        i += 1;
     }
     i
 }
