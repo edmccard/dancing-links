@@ -2,6 +2,14 @@
 name = "dlx"
 version = "0.2.0"
 edition = "2024"
+authors = ["Ed McCardell <edmccard@hotmail.com>"]
+description = """
+An implementation of Knuth's 'Dancing Links' algorithms from TAoXP Section 7.2.2.1.
+"""
+repository = "https://github.com/edmccard/dancing-links"
+keywords = ["exact-cover", "dancing-links"]
+categories = ["algorithms"]
+license = "MIT/Apache-2.0"
 
 [features]
 "unsafe-fast-index" = []
