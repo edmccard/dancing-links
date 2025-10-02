@@ -108,6 +108,7 @@ impl ONodes {
         os: impl IntoIterator<Item = impl IntoIterator<Item = (Count, Data)>>,
     ) -> ONodes {
         assert!((m as u64) < Data::MAX as u64);
+        // TODO: ensure primary have color 0
         let mut nodes = ONodes {
             nodes: vec![Default::default(); (l + m + n + 2) as usize],
             count: m,

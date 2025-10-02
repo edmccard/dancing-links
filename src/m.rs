@@ -179,6 +179,7 @@ impl INodes {
             primary: np,
             secondary: ns,
         };
+        // TODO: ensure sceondary items have u = v = 1
         for (i, (u, v)) in ms.into_iter().enumerate() {
             inodes.nodes[i + 1].bound = v;
             inodes.nodes[i + 1].slack = v - u;
