@@ -1,5 +1,7 @@
+use anyhow::{Result, bail};
+
 use crate::x;
-use crate::{Count, Dance, Data, Items, Link, Opts, Solve};
+use crate::{Count, Dance, Data, Items, Link, Opts, Solve, Spec};
 
 pub fn tweak<D: DanceM<I: ItemsM>>(x: Link, p: Link, dance: &mut D) {
     if *dance.items().bound(p) != 0 {
@@ -188,6 +190,54 @@ impl INodes {
         inodes
     }
 
+    pub fn from_spec(spec: &Spec) -> Result<(INodes, Vec<String>)> {
+        use std::collections::HashSet;
+        let mut names: Vec<String> = Vec::new();
+        let mut ms = Vec::new();
+        for item in &spec.primary {
+            let (name, u, v) = if item.contains('|') {
+                let data = item.split('|').collect::<Vec<_>>();
+                if data.len() > 2 {
+                    bail!("Too many '|' (multiplicity) separators");
+                }
+                let name = data[1];
+                let data = data[0];
+                if data.contains(':') {
+                    let data = data.split(':').collect::<Vec<_>>();
+                    if data.len() > 2 {
+                        bail!("Too many ':' (multiplicity) separators");
+                    }
+                    (name, data[0], data[1])
+                } else {
+                    (name, data, data)
+                }
+            } else {
+                (item.as_str(), "1", "1")
+            };
+            names.push(name.into());
+            let u: Data = u.parse().or_else(|_| bail!("non-numeric bound"))?;
+            let v: Data = v.parse().or_else(|_| bail!("non-numeric bound"))?;
+            ms.push((u, v));
+        }
+        for item in &spec.secondary {
+            names.push(item.into());
+            ms.push((1, 1));
+        }
+        let mut used = HashSet::new();
+        let unique = names.iter().all(|e| used.insert(e));
+        if !unique {
+            bail!("Duplicate item names");
+        }
+        for name in &names {
+            if !name.chars().all(|c| c.is_alphanumeric() || c == '#') {
+                bail!("Invalid item name");
+            }
+        }
+        let np = spec.primary.len();
+        let ns = spec.secondary.len();
+        Ok((INodes::new(np, ns, ms), names))
+    }
+
     fn get_node(&mut self, i: Link) -> &mut INode {
         if cfg!(feature = "unsafe-fast-index") {
             unsafe { self.nodes.get_unchecked_mut(i as usize) }
@@ -197,6 +247,7 @@ impl INodes {
     }
 }
 
+#[derive(Debug, Eq, PartialEq)]
 pub struct Problem {
     items: INodes,
     opts: x::ONodes,
@@ -206,6 +257,12 @@ pub struct Problem {
 impl Problem {
     pub fn new(items: INodes, opts: x::ONodes) -> Problem {
         Problem { items, opts, ft: Vec::new() }
+    }
+
+    pub fn from_spec(spec: &Spec) -> Result<Problem> {
+        let (items, names) = INodes::from_spec(&spec)?;
+        let opts = x::ONodes::from_spec(&spec, &names)?;
+        Ok(Problem::new(items, opts))
     }
 }
 
@@ -332,6 +389,30 @@ impl SolveM for Problem {}
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_from_spec() {
+        let spec_str = "
+A B 2:3|C | X Y
+A B X Y
+A C X Y
+C X
+B X
+C Y
+";
+        let spec = Spec::new(spec_str, false).unwrap();
+        let problem = Problem::from_spec(&spec).unwrap();
+        let ms = vec![(1, 1), (1, 1), (2, 3), (1, 1), (1, 1)];
+        let os = vec![
+            vec![0, 1, 3, 4],
+            vec![0, 2, 3, 4],
+            vec![2, 3],
+            vec![1, 3],
+            vec![2, 4],
+        ];
+        let items = INodes::new(3, 2, ms);
+        assert_eq!(problem.items, items);
+    }
 
     #[test]
     fn test_mc() {

@@ -1,6 +1,9 @@
-use crate::{Count, Dance, Data, Link, Solve};
+use anyhow::Result;
+
+use crate::{Count, Dance, Data, Link, Solve, Spec};
 use crate::{c, m, x};
 
+#[derive(Debug, Eq, PartialEq)]
 pub struct Problem {
     items: m::INodes,
     opts: c::ONodes,
@@ -10,6 +13,12 @@ pub struct Problem {
 impl Problem {
     pub fn new(items: m::INodes, opts: c::ONodes) -> Problem {
         Problem { items, opts, ft: Vec::new() }
+    }
+
+    pub fn from_spec(spec: &Spec) -> Result<Problem> {
+        let (items, names) = m::INodes::from_spec(&spec)?;
+        let opts = c::ONodes::from_spec(&spec, &names)?;
+        Ok(Problem::new(items, opts))
     }
 }
 
@@ -125,7 +134,7 @@ mod tests {
         let mut solver = Solver::new(problem);
         let mut solutions: Vec<Vec<isize>> = Vec::new();
         let mut expected = vec![vec![1, 3, 4]];
-	let mut i = 0;
+        let mut i = 0;
         while solver.next_solution() {
             assert!(i <= expected.len(), "too many solutions");
             solver.find_options();

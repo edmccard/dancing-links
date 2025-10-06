@@ -1,5 +1,7 @@
 #![allow(clippy::unnecessary_cast)]
 
+use anyhow::{Result, anyhow, bail};
+
 pub mod c;
 pub mod m;
 pub mod mc;
@@ -212,5 +214,61 @@ impl<P: Solve> Solver<P> {
             // Internal option indexes are 1-based
             self.o.push(-*self.problem.opts().top(r) - 1);
         }
+    }
+}
+
+pub struct Spec {
+    pub primary: Vec<String>,
+    pub secondary: Vec<String>,
+    pub opts: Vec<Vec<String>>,
+}
+
+impl Spec {
+    pub fn new(spec: &str, sharp_pref: bool) -> Result<Spec> {
+        use std::cmp::Ordering;
+        let mut lines = spec
+            .lines()
+            .map(str::trim)
+            .filter(|s| !s.is_empty() && !s.starts_with('|'));
+        let items =
+            lines.next().ok_or_else(|| anyhow!("No items specified"))?;
+        let opts: Vec<String> = lines.map(String::from).collect();
+        if opts.is_empty() {
+            bail!("No options specified");
+        }
+        let item_list = items
+            .split_whitespace()
+            .map(String::from)
+            .collect::<Vec<_>>();
+        let items = item_list.split(|e| e == "|").collect::<Vec<_>>();
+        if items.len() > 2 {
+            bail!("Too many '|' separators");
+        }
+        let secondary = if items.len() > 1 {
+            if items[1].is_empty() {
+                bail!("No seecondary items specified");
+            }
+            // TODO: no '#' in secondary?
+            items[1].to_vec()
+        } else {
+            Vec::new()
+        };
+        let mut primary = items[0].to_vec();
+        primary.sort_by(|a, b| {
+            let a_sharp = a.contains("#");
+            let b_sharp = b.contains("#");
+            if a_sharp == b_sharp {
+                Ordering::Equal
+            } else if a_sharp == sharp_pref {
+                Ordering::Less
+            } else {
+                Ordering::Greater
+            }
+        });
+        let opts = opts
+            .iter()
+            .map(|o| o.split_whitespace().map(String::from).collect())
+            .collect();
+        Ok(Spec { primary: primary, secondary, opts })
     }
 }

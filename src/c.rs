@@ -1,5 +1,7 @@
+use anyhow::{Result, anyhow, bail};
+
 use crate::x;
-use crate::{Count, Dance, Data, Link, Opts, Solve};
+use crate::{Count, Dance, Data, Link, Opts, Solve, Spec};
 
 pub fn commit<D: DanceC<O: OptsC>>(p: Link, j: Link, dance: &mut D) {
     if *dance.opts().color(p) == 0 {
@@ -117,6 +119,48 @@ impl ONodes {
         nodes
     }
 
+    pub fn from_spec(spec: &Spec, names: &[String]) -> Result<ONodes> {
+        use std::collections::{HashMap, HashSet};
+        let mut idx = HashMap::new();
+        for (i, name) in names.iter().enumerate() {
+            idx.insert(name.as_str(), i);
+        }
+        let mut os = Vec::new();
+        let mut l = 0;
+        for opt in &spec.opts {
+            let mut is = Vec::new();
+            let mut used = HashSet::new();
+            for itm in opt {
+                let data = itm.split(':').collect::<Vec<_>>();
+                let (name, color) = if data.len() > 2 {
+                    bail!("Too many ':' separators");
+                } else if data.len() == 2 {
+                    if data[1].len() != 1 {
+                        bail!("Color must be a single character");
+                    }
+                    (data[0], data[1].chars().nth(0).unwrap())
+                } else {
+                    (data[0], ' ')
+                };
+                let i =
+                    *idx.get(name).ok_or_else(|| anyhow!("Invalid item"))?;
+                if !used.insert(itm) {
+                    bail!("Duplicate items in option");
+                }
+                if i < spec.primary.len() && color != ' ' {
+                    bail!("Color on primary item");
+                }
+                let color = if color == ' ' { 0 } else { color as Data };
+                is.push((i, color));
+                l += 1;
+            }
+            os.push(is);
+        }
+        let n = spec.primary.len() + spec.secondary.len();
+        let opts = ONodes::new(n, os.len(), l, os);
+        Ok(opts)
+    }
+
     fn get_node(&mut self, i: Link) -> &mut ONode {
         if cfg!(feature = "unsafe-fast-index") {
             unsafe { self.nodes.get_unchecked_mut(i as usize) }
@@ -126,6 +170,7 @@ impl ONodes {
     }
 }
 
+#[derive(Debug, Eq, PartialEq)]
 pub struct Problem {
     items: x::INodes,
     opts: ONodes,
@@ -134,6 +179,12 @@ pub struct Problem {
 impl Problem {
     pub fn new(items: x::INodes, opts: ONodes) -> Problem {
         Problem { items, opts }
+    }
+
+    pub fn from_spec(spec: &Spec) -> Result<Problem> {
+        let (items, names) = x::INodes::from_spec(&spec)?;
+        let opts = ONodes::from_spec(&spec, &names)?;
+        Ok(Problem { items, opts })
     }
 }
 
@@ -255,42 +306,30 @@ mod tests {
     #[test]
     fn test_opt_init() {
         let opt_spec: Vec<Vec<(Count, Data)>> = vec![
-            vec![(0, 0), (1, 0), (3, 0), (4, 1)],
-            vec![(0, 0), (2, 0), (3, 1), (4, 0)],
-            vec![(0, 0), (3, 2)],
-            vec![(1, 0), (3, 1)],
-            vec![(2, 0), (4, 2)],
+            vec![(0, 0), (1, 0), (3, 0), (4, 65)],
+            vec![(0, 0), (2, 0), (3, 65), (4, 0)],
+            vec![(0, 0), (3, 66)],
+            vec![(1, 0), (3, 65)],
+            vec![(2, 0), (4, 66)],
         ];
         let opts = ONodes::new(5, 5, 14, opt_spec);
-        let onodes = vec![
-            ONode { hdr_info: 0, up: 0, down: 0, color: 0 },
-            ONode { hdr_info: 3, up: 17, down: 7, color: 0 },
-            ONode { hdr_info: 2, up: 20, down: 8, color: 0 },
-            ONode { hdr_info: 2, up: 23, down: 13, color: 0 },
-            ONode { hdr_info: 4, up: 21, down: 9, color: 0 },
-            ONode { hdr_info: 3, up: 24, down: 10, color: 0 },
-            ONode { hdr_info: 0, up: 0, down: 10, color: 0 },
-            ONode { hdr_info: 1, up: 1, down: 12, color: 0 },
-            ONode { hdr_info: 2, up: 2, down: 20, color: 0 },
-            ONode { hdr_info: 4, up: 4, down: 14, color: 0 },
-            ONode { hdr_info: 5, up: 5, down: 15, color: 1 },
-            ONode { hdr_info: -1, up: 7, down: 15, color: 0 },
-            ONode { hdr_info: 1, up: 7, down: 17, color: 0 },
-            ONode { hdr_info: 3, up: 3, down: 23, color: 0 },
-            ONode { hdr_info: 4, up: 9, down: 18, color: 1 },
-            ONode { hdr_info: 5, up: 10, down: 24, color: 0 },
-            ONode { hdr_info: -2, up: 12, down: 18, color: 0 },
-            ONode { hdr_info: 1, up: 12, down: 1, color: 0 },
-            ONode { hdr_info: 4, up: 14, down: 21, color: 2 },
-            ONode { hdr_info: -3, up: 17, down: 21, color: 0 },
-            ONode { hdr_info: 2, up: 8, down: 2, color: 0 },
-            ONode { hdr_info: 4, up: 18, down: 4, color: 1 },
-            ONode { hdr_info: -4, up: 20, down: 24, color: 0 },
-            ONode { hdr_info: 3, up: 13, down: 3, color: 0 },
-            ONode { hdr_info: 5, up: 15, down: 5, color: 2 },
-            ONode { hdr_info: -5, up: 23, down: 0, color: 0 },
-        ];
+        let onodes = onodes_data();
         assert_eq!(opts.nodes, onodes, "incorrect options");
+    }
+
+    #[test]
+    fn test_from_spec() {
+        let spec_str = "
+p q r | x y
+p q x y:A
+p r x:A y
+p x:B
+q x:A
+r y:B
+";
+        let spec = Spec::new(spec_str, false).unwrap();
+        let problem = Problem::from_spec(&spec).unwrap();
+        assert_eq!(problem.opts.nodes, onodes_data());
     }
 
     #[test]
@@ -298,11 +337,11 @@ mod tests {
         use crate::Solver;
         let items = x::INodes::new(3, 2);
         let os: Vec<Vec<(Count, Data)>> = vec![
-            vec![(0, 0), (1, 0), (3, 0), (4, 1)],
-            vec![(0, 0), (2, 0), (3, 1), (4, 0)],
-            vec![(0, 0), (3, 2)],
-            vec![(1, 0), (3, 1)],
-            vec![(2, 0), (4, 2)],
+            vec![(0, 0), (1, 0), (3, 0), (4, 65)],
+            vec![(0, 0), (2, 0), (3, 65), (4, 0)],
+            vec![(0, 0), (3, 66)],
+            vec![(1, 0), (3, 65)],
+            vec![(2, 0), (4, 66)],
         ];
         let opts = ONodes::new(5, 5, 14, os);
         let items_init = items.clone();
@@ -328,5 +367,36 @@ mod tests {
             solver.l == 0 && solver.restart == false,
             "initial state not restored"
         );
+    }
+
+    fn onodes_data() -> Vec<ONode> {
+        vec![
+            ONode { hdr_info: 0, up: 0, down: 0, color: 0 },
+            ONode { hdr_info: 3, up: 17, down: 7, color: 0 },
+            ONode { hdr_info: 2, up: 20, down: 8, color: 0 },
+            ONode { hdr_info: 2, up: 23, down: 13, color: 0 },
+            ONode { hdr_info: 4, up: 21, down: 9, color: 0 },
+            ONode { hdr_info: 3, up: 24, down: 10, color: 0 },
+            ONode { hdr_info: 0, up: 0, down: 10, color: 0 },
+            ONode { hdr_info: 1, up: 1, down: 12, color: 0 },
+            ONode { hdr_info: 2, up: 2, down: 20, color: 0 },
+            ONode { hdr_info: 4, up: 4, down: 14, color: 0 },
+            ONode { hdr_info: 5, up: 5, down: 15, color: 65 },
+            ONode { hdr_info: -1, up: 7, down: 15, color: 0 },
+            ONode { hdr_info: 1, up: 7, down: 17, color: 0 },
+            ONode { hdr_info: 3, up: 3, down: 23, color: 0 },
+            ONode { hdr_info: 4, up: 9, down: 18, color: 65 },
+            ONode { hdr_info: 5, up: 10, down: 24, color: 0 },
+            ONode { hdr_info: -2, up: 12, down: 18, color: 0 },
+            ONode { hdr_info: 1, up: 12, down: 1, color: 0 },
+            ONode { hdr_info: 4, up: 14, down: 21, color: 66 },
+            ONode { hdr_info: -3, up: 17, down: 21, color: 0 },
+            ONode { hdr_info: 2, up: 8, down: 2, color: 0 },
+            ONode { hdr_info: 4, up: 18, down: 4, color: 65 },
+            ONode { hdr_info: -4, up: 20, down: 24, color: 0 },
+            ONode { hdr_info: 3, up: 13, down: 3, color: 0 },
+            ONode { hdr_info: 5, up: 15, down: 5, color: 66 },
+            ONode { hdr_info: -5, up: 23, down: 0, color: 0 },
+        ]
     }
 }

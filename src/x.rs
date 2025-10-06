@@ -1,4 +1,6 @@
-use crate::{Count, Dance, Data, Items, Link, Opts, Solve};
+use anyhow::{Result, anyhow, bail};
+
+use crate::{Count, Dance, Data, Items, Link, Opts, Solve, Spec};
 
 pub fn cover<D: Dance>(i: Link, dance: &mut D) {
     // TODO: increment updates
@@ -144,6 +146,25 @@ impl INodes {
         nodes
     }
 
+    pub fn from_spec(spec: &Spec) -> Result<(INodes, Vec<String>)> {
+        use std::collections::HashSet;
+        let np = spec.primary.len();
+        let ns = spec.secondary.len();
+        let mut names = spec.primary.clone();
+        names.extend(spec.secondary.clone());
+        let mut used = HashSet::new();
+        let unique = names.iter().all(|e| used.insert(e));
+        if !unique {
+            bail!("Duplicate item names");
+        }
+        for name in &names {
+            if !name.chars().all(|c| c.is_alphanumeric() || c == '#') {
+                bail!("Invalid item name");
+            }
+        }
+        Ok((INodes::new(np, ns), names))
+    }
+
     fn get_node(&mut self, i: Link) -> &mut INode {
         if cfg!(feature = "unsafe-fast-index") {
             unsafe { self.nodes.get_unchecked_mut(i as usize) }
@@ -180,6 +201,32 @@ impl ONodes {
         nodes
     }
 
+    pub fn from_spec(spec: &Spec, names: &[String]) -> Result<ONodes> {
+        use std::collections::{HashMap, HashSet};
+        let mut idx = HashMap::new();
+        for (i, name) in names.iter().enumerate() {
+            idx.insert(name, i);
+        }
+        let mut os = Vec::new();
+        let mut l = 0;
+        for opt in &spec.opts {
+            let mut is = Vec::new();
+            let mut used = HashSet::new();
+            for itm in opt {
+                let i = idx.get(itm).ok_or_else(|| anyhow!("Invalid item"))?;
+                if !used.insert(itm) {
+                    bail!("Duplicate items in option");
+                }
+                is.push(*i);
+                l += 1;
+            }
+            os.push(is);
+        }
+        let n = spec.primary.len() + spec.secondary.len();
+        let opts = ONodes::new(n, os.len(), l, os);
+        Ok(opts)
+    }
+
     fn get_node(&mut self, i: Link) -> &mut ONode {
         if cfg!(feature = "unsafe-fast-index") {
             unsafe { self.nodes.get_unchecked_mut(i as usize) }
@@ -189,6 +236,7 @@ impl ONodes {
     }
 }
 
+#[derive(Debug, Eq, PartialEq)]
 pub struct Problem {
     items: INodes,
     opts: ONodes,
@@ -197,6 +245,12 @@ pub struct Problem {
 impl Problem {
     pub fn new(items: INodes, opts: ONodes) -> Problem {
         Problem { items, opts }
+    }
+
+    pub fn from_spec(spec: &Spec) -> Result<Problem> {
+        let (items, names) = INodes::from_spec(&spec)?;
+        let opts = ONodes::from_spec(&spec, &names)?;
+        Ok(Problem { items, opts })
     }
 }
 
@@ -310,15 +364,7 @@ mod tests {
     #[test]
     fn test_item_init() {
         let items = INodes::new(3, 2);
-        let inodes = vec![
-            INode { left: 3, right: 1 },
-            INode { left: 0, right: 2 },
-            INode { left: 1, right: 3 },
-            INode { left: 2, right: 0 },
-            INode { left: 6, right: 5 },
-            INode { left: 4, right: 6 },
-            INode { left: 5, right: 4 },
-        ];
+        let inodes = inodes_data();
         assert_eq!(items.nodes, inodes, "incorrect items");
     }
 
@@ -332,35 +378,26 @@ mod tests {
             vec![2, 4],
         ];
         let opts = ONodes::new(5, 5, 14, os);
-        let onodes = vec![
-            ONode { hdr_info: 0, up: 0, down: 0 },
-            ONode { hdr_info: 3, up: 17, down: 7 },
-            ONode { hdr_info: 2, up: 20, down: 8 },
-            ONode { hdr_info: 2, up: 23, down: 13 },
-            ONode { hdr_info: 4, up: 21, down: 9 },
-            ONode { hdr_info: 3, up: 24, down: 10 },
-            ONode { hdr_info: 0, up: 0, down: 10 },
-            ONode { hdr_info: 1, up: 1, down: 12 },
-            ONode { hdr_info: 2, up: 2, down: 20 },
-            ONode { hdr_info: 4, up: 4, down: 14 },
-            ONode { hdr_info: 5, up: 5, down: 15 },
-            ONode { hdr_info: -1, up: 7, down: 15 },
-            ONode { hdr_info: 1, up: 7, down: 17 },
-            ONode { hdr_info: 3, up: 3, down: 23 },
-            ONode { hdr_info: 4, up: 9, down: 18 },
-            ONode { hdr_info: 5, up: 10, down: 24 },
-            ONode { hdr_info: -2, up: 12, down: 18 },
-            ONode { hdr_info: 1, up: 12, down: 1 },
-            ONode { hdr_info: 4, up: 14, down: 21 },
-            ONode { hdr_info: -3, up: 17, down: 21 },
-            ONode { hdr_info: 2, up: 8, down: 2 },
-            ONode { hdr_info: 4, up: 18, down: 4 },
-            ONode { hdr_info: -4, up: 20, down: 24 },
-            ONode { hdr_info: 3, up: 13, down: 3 },
-            ONode { hdr_info: 5, up: 15, down: 5 },
-            ONode { hdr_info: -5, up: 23, down: 0 },
-        ];
+        let onodes = onodes_data();
         assert_eq!(opts.nodes, onodes, "incorrect options");
+    }
+
+    #[test]
+    fn test_from_spec() {
+        let spec_str = "
+| This is a comment
+p q r | x y
+
+p q x y
+p r x y
+| Another comment
+p x
+q x
+r y";
+        let spec = Spec::new(spec_str, false).unwrap();
+        let problem = Problem::from_spec(&spec).unwrap();
+        assert_eq!(problem.items.nodes, inodes_data());
+        assert_eq!(problem.opts.nodes, onodes_data());
     }
 
     #[test]
@@ -399,5 +436,48 @@ mod tests {
             solver.l == 0 && solver.restart == false,
             "initial state not restored"
         );
+    }
+
+    pub(crate) fn inodes_data() -> Vec<INode> {
+        vec![
+            INode { left: 3, right: 1 },
+            INode { left: 0, right: 2 },
+            INode { left: 1, right: 3 },
+            INode { left: 2, right: 0 },
+            INode { left: 6, right: 5 },
+            INode { left: 4, right: 6 },
+            INode { left: 5, right: 4 },
+        ]
+    }
+
+    fn onodes_data() -> Vec<ONode> {
+        vec![
+            ONode { hdr_info: 0, up: 0, down: 0 },
+            ONode { hdr_info: 3, up: 17, down: 7 },
+            ONode { hdr_info: 2, up: 20, down: 8 },
+            ONode { hdr_info: 2, up: 23, down: 13 },
+            ONode { hdr_info: 4, up: 21, down: 9 },
+            ONode { hdr_info: 3, up: 24, down: 10 },
+            ONode { hdr_info: 0, up: 0, down: 10 },
+            ONode { hdr_info: 1, up: 1, down: 12 },
+            ONode { hdr_info: 2, up: 2, down: 20 },
+            ONode { hdr_info: 4, up: 4, down: 14 },
+            ONode { hdr_info: 5, up: 5, down: 15 },
+            ONode { hdr_info: -1, up: 7, down: 15 },
+            ONode { hdr_info: 1, up: 7, down: 17 },
+            ONode { hdr_info: 3, up: 3, down: 23 },
+            ONode { hdr_info: 4, up: 9, down: 18 },
+            ONode { hdr_info: 5, up: 10, down: 24 },
+            ONode { hdr_info: -2, up: 12, down: 18 },
+            ONode { hdr_info: 1, up: 12, down: 1 },
+            ONode { hdr_info: 4, up: 14, down: 21 },
+            ONode { hdr_info: -3, up: 17, down: 21 },
+            ONode { hdr_info: 2, up: 8, down: 2 },
+            ONode { hdr_info: 4, up: 18, down: 4 },
+            ONode { hdr_info: -4, up: 20, down: 24 },
+            ONode { hdr_info: 3, up: 13, down: 3 },
+            ONode { hdr_info: 5, up: 15, down: 5 },
+            ONode { hdr_info: -5, up: 23, down: 0 },
+        ]
     }
 }
