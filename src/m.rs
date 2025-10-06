@@ -409,6 +409,7 @@ C Y
 
     #[test]
     fn test_mc() {
+        use crate::choose::*;
         use crate::{OptOrder, Rng, Solver};
         use core::iter::repeat_n;
         let ms = repeat_n((1, 1), 8)
@@ -442,7 +443,8 @@ C Y
             vec![2, 3, 4, 7, 9, 10, 12, 13],
         ];
         let mut i = 0;
-        while solver.next_solution() {
+        let mut chooser = mrv_chooser(prefer_any());
+        while solver.next_solution(&mut chooser) {
             assert!(i <= expected.len(), "too many solutions");
             solver.find_options();
             solver.o.sort();

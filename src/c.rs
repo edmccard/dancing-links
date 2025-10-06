@@ -335,6 +335,7 @@ r y:B
     #[test]
     fn test_xcc() {
         use crate::Solver;
+        use crate::choose::*;
         let items = x::INodes::new(3, 2);
         let os: Vec<Vec<(Count, Data)>> = vec![
             vec![(0, 0), (1, 0), (3, 0), (4, 65)],
@@ -351,7 +352,8 @@ r y:B
         let mut solutions: Vec<Vec<isize>> = Vec::new();
         let mut expected = vec![vec![1, 3]];
         let mut i = 0;
-        while solver.next_solution() {
+        let mut chooser = mrv_chooser(prefer_any());
+        while solver.next_solution(&mut chooser) {
             assert!(i <= expected.len(), "too many solutions");
             solver.find_options();
             solver.o.sort();

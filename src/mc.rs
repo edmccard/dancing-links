@@ -117,6 +117,7 @@ mod tests {
 
     #[test]
     fn test_mcc() {
+        use crate::choose::*;
         use crate::{OptOrder, Solver};
         let ms = vec![(1, 1), (1, 1), (2, 3), (1, 1), (1, 1)];
         let items = m::INodes::new(3, 2, ms);
@@ -135,7 +136,8 @@ mod tests {
         let mut solutions: Vec<Vec<isize>> = Vec::new();
         let mut expected = vec![vec![1, 3, 4]];
         let mut i = 0;
-        while solver.next_solution() {
+        let mut chooser = mrv_chooser(prefer_any());
+        while solver.next_solution(&mut chooser) {
             assert!(i <= expected.len(), "too many solutions");
             solver.find_options();
             solver.o.sort();

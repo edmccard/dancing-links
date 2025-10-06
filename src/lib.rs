@@ -2,10 +2,13 @@
 
 use anyhow::{Result, anyhow, bail};
 
+use crate::choose::Choose;
+
+pub mod x;
 pub mod c;
 pub mod m;
 pub mod mc;
-pub mod x;
+pub mod choose;
 
 pub type Link = usize;
 pub type Count = Link;
@@ -150,7 +153,7 @@ impl<P: Solve> Solver<P> {
         }
     }
 
-    pub fn next_solution(&mut self) -> bool {
+    pub fn next_solution<C: Choose>(&mut self, chooser: &mut C) -> bool {
         let mut l = self.l;
         let mut i = self.i;
 
@@ -167,7 +170,8 @@ impl<P: Solve> Solver<P> {
                     self.x.push(0);
                 }
                 self.problem.enter_level(i, l, self.x[l as usize]);
-                i = self.choose();
+                //i = self.choose();
+                i = chooser.choose(&mut self.problem);
                 // TODO: return option from choose
                 if self.problem.branch_degree(i) != 0 {
                     self.x[l as usize] = *self.problem.opts().dlink(i);
@@ -193,21 +197,6 @@ impl<P: Solve> Solver<P> {
                 }
             }
         }
-    }
-
-    fn choose(&mut self) -> Link {
-        let mut min = Data::MAX;
-        let mut p = *self.problem.items().rlink(0);
-        let mut i = p;
-        while p != 0 {
-            let curr = self.problem.branch_degree(p);
-            if curr < min {
-                min = curr;
-                i = p;
-            }
-            p = *self.problem.items().rlink(p);
-        }
-        i
     }
 
     pub fn find_options(&mut self) {
