@@ -17,6 +17,7 @@ const _: () = {
     assert!(Data::MAX as u128 <= u64::MAX as u128);
     assert!(Data::MAX as u128 <= Count::MAX as u128);
     assert!(Data::MAX as u128 <= Link::MAX as u128);
+    assert!(Data::MIN < 0);
 };
 
 pub trait Dance {
@@ -74,9 +75,10 @@ pub trait Opts {
     fn set_data(&mut self, pk: Link, s: Self::Spec) -> Link;
 
     fn init_links(
-        &mut self, n: Count,
+        &mut self, n: Count, order: OptOrder,
         os: impl IntoIterator<Item = impl IntoIterator<Item = Self::Spec>>,
     ) {
+        let mut order = order;
         for i in (1 as Link)..=n {
             *self.ulink(i) = i;
             *self.dlink(i) = i;
@@ -92,7 +94,17 @@ pub trait Opts {
                 // TODO: i <= Data::MAX
 
                 *self.len(i) += 1;
-                let q = *self.ulink(i);
+                let q = match order {
+                    OptOrder::Seq => *self.ulink(i),
+                    OptOrder::Rnd(ref mut rng) => {
+                        let mut i = i;
+                        let p = rng.uniform(*self.len(i) as u32);
+                        for _ in 0..p {
+                            i = *self.dlink(i);
+                        }
+                        i
+                    }
+                };
                 let qd = *self.dlink(q);
                 *self.ulink(p + k) = q;
                 *self.dlink(p + k) = qd;
@@ -271,4 +283,41 @@ impl Spec {
             .collect();
         Ok(Spec { primary: primary, secondary, opts })
     }
+}
+
+pub struct Rng {
+    state: u32,
+}
+
+impl Rng {
+    pub fn new(state: u32) -> Rng {
+        assert_ne!(state, 0);
+        Rng { state }
+    }
+
+    pub fn next(&mut self) -> u32 {
+        let mut x = self.state;
+        x ^= x << 13;
+        x ^= x >> 17;
+        x ^= x << 5;
+        self.state = x;
+        x
+    }
+
+    pub fn uniform(&mut self, max: u32) -> u32 {
+        let t = 0x80000000 - (0x80000000 % max);
+        let mut r;
+        loop {
+            r = self.next();
+            if t > r {
+                break;
+            }
+        }
+        r % max
+    }
+}
+
+pub enum OptOrder {
+    Seq,
+    Rnd(Rng),
 }

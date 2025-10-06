@@ -1,6 +1,6 @@
 use anyhow::{Result, anyhow, bail};
 
-use crate::{Count, Dance, Data, Items, Link, Opts, Solve, Spec};
+use crate::{Count, Dance, Data, Items, Link, OptOrder, Opts, Solve, Spec};
 
 pub fn cover<D: Dance>(i: Link, dance: &mut D) {
     // TODO: increment updates
@@ -189,7 +189,7 @@ pub struct ONodes {
 
 impl ONodes {
     pub fn new(
-        n: Count, m: Count, l: Count,
+        n: Count, m: Count, l: Count, order: OptOrder,
         os: impl IntoIterator<Item = impl IntoIterator<Item = Count>>,
     ) -> ONodes {
         assert!((m as u64) < Data::MAX as u64);
@@ -197,7 +197,7 @@ impl ONodes {
             nodes: vec![Default::default(); (l + m + n + 2) as usize],
             count: m,
         };
-        nodes.init_links(n, os);
+        nodes.init_links(n, order, os);
         nodes
     }
 
@@ -223,7 +223,7 @@ impl ONodes {
             os.push(is);
         }
         let n = spec.primary.len() + spec.secondary.len();
-        let opts = ONodes::new(n, os.len(), l, os);
+        let opts = ONodes::new(n, os.len(), l, OptOrder::Seq, os);
         Ok(opts)
     }
 
@@ -377,7 +377,7 @@ mod tests {
             vec![1, 3],
             vec![2, 4],
         ];
-        let opts = ONodes::new(5, 5, 14, os);
+        let opts = ONodes::new(5, 5, 14, OptOrder::Seq, os);
         let onodes = onodes_data();
         assert_eq!(opts.nodes, onodes, "incorrect options");
     }
@@ -412,7 +412,7 @@ r y";
             vec![1, 6],
             vec![3, 4, 6],
         ];
-        let opts = ONodes::new(7, 6, 16, os);
+        let opts = ONodes::new(7, 6, 16, OptOrder::Seq, os);
         let items_init = items.clone();
         let opts_init = opts.clone();
         let problem = Problem::new(items, opts);

@@ -403,20 +403,13 @@ C Y
         let spec = Spec::new(spec_str, false).unwrap();
         let problem = Problem::from_spec(&spec).unwrap();
         let ms = vec![(1, 1), (1, 1), (2, 3), (1, 1), (1, 1)];
-        let os = vec![
-            vec![0, 1, 3, 4],
-            vec![0, 2, 3, 4],
-            vec![2, 3],
-            vec![1, 3],
-            vec![2, 4],
-        ];
         let items = INodes::new(3, 2, ms);
         assert_eq!(problem.items, items);
     }
 
     #[test]
     fn test_mc() {
-        use crate::Solver;
+        use crate::{OptOrder, Rng, Solver};
         use core::iter::repeat_n;
         let ms = repeat_n((1, 1), 8)
             .chain(repeat_n((2, 2), 4))
@@ -432,7 +425,8 @@ C Y
                 os.push(vec![10 + i, 6 + j, 21 + i + 1 - j, 15 + i + j]);
             }
         }
-        let opts = x::ONodes::new(24, 16, 64, os);
+        let opts =
+            x::ONodes::new(24, 16, 64, OptOrder::Rnd(Rng::new(12345678)), os);
 
         let items_init = items.clone();
         let opts_init = opts.clone();
