@@ -119,8 +119,8 @@ mod tests {
     fn test_mcc() {
         use crate::choose::*;
         use crate::{OptOrder, Solver};
-        let ms = vec![(1, 1), (1, 1), (2, 3), (1, 1), (1, 1)];
-        let items = m::INodes::new(3, 2, ms);
+        let ps = vec![(1, 1), (1, 1), (2, 3)];
+        let items = m::INodes::new(ps, 2);
         let os = vec![
             vec![(0, 0), (1, 0), (3, 0), (4, 0)],
             vec![(0, 0), (2, 0), (3, 1), (4, 1)],
@@ -128,7 +128,7 @@ mod tests {
             vec![(1, 0), (3, 1)],
             vec![(2, 0), (4, 1)],
         ];
-        let opts = c::ONodes::new(5, 5, 14, OptOrder::Seq, os);
+        let opts = c::ONodes::new(5, os, OptOrder::Seq);
         let items_init = items.clone();
         let opts_init = opts.clone();
         let problem = Problem::new(items, opts);

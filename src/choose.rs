@@ -67,11 +67,9 @@ impl<P: Preference, T: Tiebreak> MRVChooser<P, T> {
                 self.tbreak.reset();
                 min = curr;
                 i = p;
-            } else if curr == min {
-                if self.tbreak.replace(i, p, dance) {
-                    min = curr;
-                    i = p
-                }
+            } else if curr == min && self.tbreak.replace(i, p, dance) {
+                min = curr;
+                i = p
             }
             p = *dance.items().rlink(p);
         }

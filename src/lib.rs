@@ -45,11 +45,7 @@ pub trait Items {
     fn rlink(&mut self, i: Link) -> &mut Link;
 
     fn primary(&self) -> Count;
-    fn secondary(&self) -> Count;
-
-    fn len(&self) -> Count {
-        self.primary() + self.secondary()
-    }
+    fn len(&self) -> Count;
 
     fn init_links(&mut self) {
         let n1 = self.primary();
@@ -67,8 +63,11 @@ pub trait Items {
     }
 }
 
+pub trait OptSpec<T>: IntoIterator<Item: IntoIterator<Item = T>> {}
+impl<T, U> OptSpec<T> for U where U: IntoIterator<Item: IntoIterator<Item = T>> {}
+
 pub trait Opts {
-    type Spec;
+    type Spec: Default;
 
     fn len(&mut self, i: Link) -> &mut Data;
     fn top(&mut self, i: Link) -> &mut Data;
@@ -78,8 +77,7 @@ pub trait Opts {
     fn set_data(&mut self, pk: Link, s: Self::Spec) -> Link;
 
     fn init_links(
-        &mut self, n: Count, order: OptOrder,
-        os: impl IntoIterator<Item = impl IntoIterator<Item = Self::Spec>>,
+        &mut self, n: Count, order: OptOrder, os: impl OptSpec<Self::Spec>,
     ) {
         let mut order = order;
         for i in (1 as Link)..=n {
@@ -88,6 +86,7 @@ pub trait Opts {
         }
         let mut m: Data = 0;
         let mut p: Link = n + 1;
+
         for opt in os.into_iter() {
             let mut k = 0;
             for node in opt.into_iter() {
@@ -118,6 +117,7 @@ pub trait Opts {
             m += 1;
             *self.dlink(p) = p + k;
             p = p + k + 1;
+            self.set_data(p, Default::default());
             *self.top(p) = -m;
             *self.ulink(p) = p - k;
         }
@@ -200,8 +200,7 @@ impl<P: Solve> Solver<P> {
     }
 
     pub fn find_options(&mut self) {
-        let n =
-            self.problem.items().primary() + self.problem.items().secondary();
+        let n = self.problem.items().len();
         self.o.clear();
         for xj in &self.x[..self.l as usize] {
             let mut r = *xj;
@@ -278,6 +277,7 @@ pub struct Rng {
     state: u32,
 }
 
+#[allow(clippy::should_implement_trait)]
 impl Rng {
     pub fn new(state: u32) -> Rng {
         assert_ne!(state, 0);

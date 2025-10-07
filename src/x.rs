@@ -1,6 +1,8 @@
 use anyhow::{Result, anyhow, bail};
 
-use crate::{Count, Dance, Data, Items, Link, OptOrder, Opts, Solve, Spec};
+use crate::{
+    Count, Dance, Data, Items, Link, OptOrder, OptSpec, Opts, Solve, Spec,
+};
 
 pub fn cover<D: Dance>(i: Link, dance: &mut D) {
     // TODO: increment updates
@@ -130,7 +132,7 @@ pub struct INode {
 pub struct INodes {
     nodes: Vec<INode>,
     primary: Count,
-    secondary: Count,
+    len: Count,
 }
 
 impl INodes {
@@ -140,7 +142,7 @@ impl INodes {
         let mut nodes = INodes {
             nodes: vec![Default::default(); (np + ns + 2) as usize],
             primary: np,
-            secondary: ns,
+            len: np + ns,
         };
         nodes.init_links();
         nodes
@@ -184,31 +186,25 @@ struct ONode {
 #[derive(Clone, Default, Debug, Eq, PartialEq)]
 pub struct ONodes {
     nodes: Vec<ONode>,
-    count: Count,
 }
 
 impl ONodes {
-    pub fn new(
-        n: Count, m: Count, l: Count, order: OptOrder,
-        os: impl IntoIterator<Item = impl IntoIterator<Item = Count>>,
-    ) -> ONodes {
-        assert!((m as u64) < Data::MAX as u64);
-        let mut nodes = ONodes {
-            nodes: vec![Default::default(); (l + m + n + 2) as usize],
-            count: m,
-        };
-        nodes.init_links(n, order, os);
-        nodes
+    pub fn new(n: Count, os: impl OptSpec<Count>, order: OptOrder) -> ONodes {
+        let mut onodes =
+            ONodes { nodes: vec![Default::default(); (n + 2) as usize] };
+        onodes.init_links(n, order, os);
+        onodes
     }
 
-    pub fn from_spec(spec: &Spec, names: &[String]) -> Result<ONodes> {
+    pub fn from_spec(
+        spec: &Spec, names: &[String], order: OptOrder,
+    ) -> Result<ONodes> {
         use std::collections::{HashMap, HashSet};
         let mut idx = HashMap::new();
         for (i, name) in names.iter().enumerate() {
             idx.insert(name, i);
         }
         let mut os = Vec::new();
-        let mut l = 0;
         for opt in &spec.opts {
             let mut is = Vec::new();
             let mut used = HashSet::new();
@@ -218,12 +214,11 @@ impl ONodes {
                     bail!("Duplicate items in option");
                 }
                 is.push(*i);
-                l += 1;
             }
             os.push(is);
         }
         let n = spec.primary.len() + spec.secondary.len();
-        let opts = ONodes::new(n, os.len(), l, OptOrder::Seq, os);
+        let opts = ONodes::new(n, os, order);
         Ok(opts)
     }
 
@@ -247,9 +242,9 @@ impl Problem {
         Problem { items, opts }
     }
 
-    pub fn from_spec(spec: &Spec) -> Result<Problem> {
+    pub fn from_spec(spec: &Spec, order: OptOrder) -> Result<Problem> {
         let (items, names) = INodes::from_spec(spec)?;
-        let opts = ONodes::from_spec(spec, &names)?;
+        let opts = ONodes::from_spec(spec, &names, order)?;
         Ok(Problem { items, opts })
     }
 }
@@ -267,8 +262,8 @@ impl Items for INodes {
         self.primary
     }
 
-    fn secondary(&self) -> Count {
-        self.secondary
+    fn len(&self) -> Count {
+        self.len
     }
 }
 
@@ -291,7 +286,9 @@ impl Opts for ONodes {
         &mut self.get_node(i).down
     }
 
-    fn set_data(&mut self, _: Link, s: Count) -> Link {
+    fn set_data(&mut self, pk: Link, s: Count) -> Link {
+        self.nodes.push(Default::default());
+        assert!(pk < self.nodes.len(), "BLAH {} {}", pk, self.nodes.len());
         s
     }
 }
@@ -377,7 +374,7 @@ mod tests {
             vec![1, 3],
             vec![2, 4],
         ];
-        let opts = ONodes::new(5, 5, 14, OptOrder::Seq, os);
+        let opts = ONodes::new(5, os, OptOrder::Seq);
         let onodes = onodes_data();
         assert_eq!(opts.nodes, onodes, "incorrect options");
     }
@@ -395,7 +392,7 @@ p x
 q x
 r y";
         let spec = Spec::new(spec_str, false).unwrap();
-        let problem = Problem::from_spec(&spec).unwrap();
+        let problem = Problem::from_spec(&spec, OptOrder::Seq).unwrap();
         assert_eq!(problem.items.nodes, inodes_data());
         assert_eq!(problem.opts.nodes, onodes_data());
     }
@@ -413,7 +410,7 @@ r y";
             vec![1, 6],
             vec![3, 4, 6],
         ];
-        let opts = ONodes::new(7, 6, 16, OptOrder::Seq, os);
+        let opts = ONodes::new(7, os, OptOrder::Seq);
         let items_init = items.clone();
         let opts_init = opts.clone();
         let problem = Problem::new(items, opts);

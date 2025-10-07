@@ -1,7 +1,7 @@
 use anyhow::{Result, bail};
 
 use crate::x;
-use crate::{Count, Dance, Data, Items, Link, Opts, Solve, Spec};
+use crate::{Count, Dance, Data, Items, Link, OptOrder, Opts, Solve, Spec};
 
 pub fn tweak<D: DanceM<I: ItemsM>>(x: Link, p: Link, dance: &mut D) {
     if *dance.items().bound(p) != 0 {
@@ -15,7 +15,7 @@ pub fn tweak<D: DanceM<I: ItemsM>>(x: Link, p: Link, dance: &mut D) {
 
 pub fn untweak<D: DanceM<I: ItemsM>>(l: Count, unblock: bool, dance: &mut D) {
     let ftl = dance.ft()[l];
-    let p = if ftl <= dance.items().primary() + dance.items().secondary() {
+    let p = if ftl <= dance.items().len() {
         ftl
     } else {
         *dance.opts().top(ftl) as Link
@@ -111,7 +111,7 @@ pub fn try_again<S: SolveM>(
     solve: &mut S, i: Link, l: Count, xl: &mut Link,
 ) -> bool {
     let mut i = i;
-    let again = if *xl > solve.items().primary() + solve.items().secondary() {
+    let again = if *xl > solve.items().len() {
         let mut p = *xl - 1;
         while p != *xl {
             let j = *solve.opts().top(p);
@@ -166,26 +166,22 @@ pub struct INode {
 pub struct INodes {
     nodes: Vec<INode>,
     primary: Count,
-    secondary: Count,
+    len: Count,
 }
 
 impl INodes {
     pub fn new(
-        np: Count, ns: Count, ms: impl IntoIterator<Item = (Data, Data)>,
+        ps: impl IntoIterator<Item = (Data, Data)>, ns: Count,
     ) -> INodes {
-        assert!((np as u64) < Data::MAX as u64);
-        assert!((ns as u64) < Data::MAX as u64);
-        let n = np + ns;
-        let mut inodes = INodes {
-            nodes: vec![Default::default(); (n + 2) as usize],
-            primary: np,
-            secondary: ns,
-        };
-        // TODO: ensure sceondary items have u = v = 1
-        for (i, (u, v)) in ms.into_iter().enumerate() {
-            inodes.nodes[i + 1].bound = v;
-            inodes.nodes[i + 1].slack = v - u;
+        let mut nodes = vec![Default::default()];
+        for (u, v) in ps.into_iter() {
+            nodes.push(INode { bound: v, slack: v - u, ..Default::default() });
         }
+        let primary = nodes.len() - 1;
+        for _ in 0..=ns {
+            nodes.push(Default::default());
+        }
+        let mut inodes = INodes { nodes, primary, len: primary + ns };
         inodes.init_links();
         inodes
     }
@@ -193,7 +189,7 @@ impl INodes {
     pub fn from_spec(spec: &Spec) -> Result<(INodes, Vec<String>)> {
         use std::collections::HashSet;
         let mut names: Vec<String> = Vec::new();
-        let mut ms = Vec::new();
+        let mut ps = Vec::new();
         for item in &spec.primary {
             let (name, u, v) = if item.contains('|') {
                 let data = item.split('|').collect::<Vec<_>>();
@@ -217,11 +213,10 @@ impl INodes {
             names.push(name.into());
             let u: Data = u.parse().or_else(|_| bail!("non-numeric bound"))?;
             let v: Data = v.parse().or_else(|_| bail!("non-numeric bound"))?;
-            ms.push((u, v));
+            ps.push((u, v));
         }
         for item in &spec.secondary {
             names.push(item.into());
-            ms.push((1, 1));
         }
         let mut used = HashSet::new();
         let unique = names.iter().all(|e| used.insert(e));
@@ -233,9 +228,8 @@ impl INodes {
                 bail!("Invalid item name");
             }
         }
-        let np = spec.primary.len();
         let ns = spec.secondary.len();
-        Ok((INodes::new(np, ns, ms), names))
+        Ok((INodes::new(ps, ns), names))
     }
 
     fn get_node(&mut self, i: Link) -> &mut INode {
@@ -259,9 +253,9 @@ impl Problem {
         Problem { items, opts, ft: Vec::new() }
     }
 
-    pub fn from_spec(spec: &Spec) -> Result<Problem> {
+    pub fn from_spec(spec: &Spec, order: OptOrder) -> Result<Problem> {
         let (items, names) = INodes::from_spec(spec)?;
-        let opts = x::ONodes::from_spec(spec, &names)?;
+        let opts = x::ONodes::from_spec(spec, &names, order)?;
         Ok(Problem::new(items, opts))
     }
 }
@@ -279,8 +273,8 @@ impl Items for INodes {
         self.primary
     }
 
-    fn secondary(&self) -> Count {
-        self.secondary
+    fn len(&self) -> Count {
+        self.len
     }
 }
 
@@ -401,9 +395,9 @@ B X
 C Y
 ";
         let spec = Spec::new(spec_str, false).unwrap();
-        let problem = Problem::from_spec(&spec).unwrap();
-        let ms = vec![(1, 1), (1, 1), (2, 3), (1, 1), (1, 1)];
-        let items = INodes::new(3, 2, ms);
+        let problem = Problem::from_spec(&spec, OptOrder::Seq).unwrap();
+        let ps = vec![(1, 1), (1, 1), (2, 3)];
+        let items = INodes::new(ps, 2);
         assert_eq!(problem.items, items);
     }
 
@@ -412,10 +406,10 @@ C Y
         use crate::choose::*;
         use crate::{OptOrder, Rng, Solver};
         use core::iter::repeat_n;
-        let ms = repeat_n((1, 1), 8)
+        let ps = repeat_n((1, 1), 8)
             .chain(repeat_n((2, 2), 4))
             .chain(repeat_n((0, 2), 12));
-        let items = INodes::new(24, 0, ms);
+        let items = INodes::new(ps, 0);
 
         let mut os: Vec<Vec<Count>> = Vec::new();
         for i in 0..2 {
@@ -426,8 +420,7 @@ C Y
                 os.push(vec![10 + i, 6 + j, 21 + i + 1 - j, 15 + i + j]);
             }
         }
-        let opts =
-            x::ONodes::new(24, 16, 64, OptOrder::Rnd(Rng::new(12345678)), os);
+        let opts = x::ONodes::new(24, os, OptOrder::Rnd(Rng::new(12345678)));
 
         let items_init = items.clone();
         let opts_init = opts.clone();
