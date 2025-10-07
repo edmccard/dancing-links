@@ -132,7 +132,7 @@ pub trait Solve: Dance {
     fn restore_item(&mut self, i: Link, l: Count, xl: Link);
 }
 
-pub struct Solver<P: Solve> {
+pub struct Solver<P> {
     problem: P,
     x: Vec<Link>,
     o: Vec<isize>,
@@ -153,7 +153,7 @@ impl<P: Solve> Solver<P> {
         }
     }
 
-    pub fn next_solution<C: Choose>(&mut self, chooser: &mut C) -> bool {
+    pub fn next_solution<C: Choose<P>>(&mut self, chooser: &mut C) -> bool {
         let mut l = self.l;
         let mut i = self.i;
 
@@ -270,7 +270,7 @@ impl Spec {
             .iter()
             .map(|o| o.split_whitespace().map(String::from).collect())
             .collect();
-        Ok(Spec { primary: primary, secondary, opts })
+        Ok(Spec { primary, secondary, opts })
     }
 }
 

@@ -182,8 +182,8 @@ impl Problem {
     }
 
     pub fn from_spec(spec: &Spec) -> Result<Problem> {
-        let (items, names) = x::INodes::from_spec(&spec)?;
-        let opts = ONodes::from_spec(&spec, &names)?;
+        let (items, names) = x::INodes::from_spec(spec)?;
+        let opts = ONodes::from_spec(spec, &names)?;
         Ok(Problem { items, opts })
     }
 }
@@ -352,7 +352,7 @@ r y:B
         let mut solutions: Vec<Vec<isize>> = Vec::new();
         let mut expected = vec![vec![1, 3]];
         let mut i = 0;
-        let mut chooser = mrv_chooser(prefer_any());
+        let mut chooser = mrv_chooser(prefer_any(), rnd_tiebreak(12345678));
         while solver.next_solution(&mut chooser) {
             assert!(i <= expected.len(), "too many solutions");
             solver.find_options();
