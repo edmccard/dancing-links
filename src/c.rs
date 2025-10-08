@@ -1,7 +1,7 @@
 use anyhow::{Result, anyhow, bail};
 
 use crate::x;
-use crate::{Count, Dance, Data, Link, OptOrder, OptSpec, Opts, Solve, Spec};
+use crate::{Count, Dance, Data, Link, OptOrder, Opts, Solve, Spec};
 
 pub fn commit<D: DanceC<O: OptsC>>(p: Link, j: Link, dance: &mut D) {
     if *dance.opts().color(p) == 0 {
@@ -33,8 +33,8 @@ pub fn hide<D: DanceC<O: OptsC>>(p: Link, dance: &mut D) {
             if *dance.opts().color(q) >= 0 {
                 *dance.opts().dlink(u) = d;
                 *dance.opts().ulink(d) = u;
-                // TODO self.updates += 1;
                 *dance.opts().len(x as Link) -= 1;
+                *dance.updates() += 1;
             }
             q += 1;
         }
@@ -104,9 +104,7 @@ pub struct ONodes {
 }
 
 impl ONodes {
-    pub fn new(
-        n: Count, os: impl OptSpec<(Count, Data)>, order: OptOrder,
-    ) -> ONodes {
+    pub fn new(n: Count, os: &[Vec<(Count, Data)>], order: OptOrder) -> ONodes {
         // TODO: ensure primary have color 0
         let mut nodes =
             ONodes { nodes: vec![Default::default(); (n + 2) as usize] };
@@ -150,7 +148,7 @@ impl ONodes {
             os.push(is);
         }
         let n = spec.primary.len() + spec.secondary.len();
-        let opts = ONodes::new(n, os, OptOrder::Seq);
+        let opts = ONodes::new(n, &os, OptOrder::Seq);
         Ok(opts)
     }
 
@@ -167,17 +165,18 @@ impl ONodes {
 pub struct Problem {
     items: x::INodes,
     opts: ONodes,
+    updates: isize,
 }
 
 impl Problem {
     pub fn new(items: x::INodes, opts: ONodes) -> Problem {
-        Problem { items, opts }
+        Problem { items, opts, updates: 0 }
     }
 
     pub fn from_spec(spec: &Spec) -> Result<Problem> {
         let (items, names) = x::INodes::from_spec(spec)?;
         let opts = ONodes::from_spec(spec, &names)?;
-        Ok(Problem { items, opts })
+        Ok(Problem::new(items, opts))
     }
 }
 
@@ -227,6 +226,10 @@ impl Dance for Problem {
 
     fn opts(&mut self) -> &mut Self::O {
         &mut self.opts
+    }
+
+    fn updates(&mut self) -> &mut isize {
+        &mut self.updates
     }
 
     fn cover(&mut self, i: Link) {
@@ -306,7 +309,7 @@ mod tests {
             vec![(1, 0), (3, 65)],
             vec![(2, 0), (4, 66)],
         ];
-        let opts = ONodes::new(5, os, OptOrder::Seq);
+        let opts = ONodes::new(5, &os, OptOrder::Seq);
         let onodes = onodes_data();
         assert_eq!(opts.nodes, onodes, "incorrect options");
     }
@@ -338,7 +341,7 @@ r y:B
             vec![(1, 0), (3, 65)],
             vec![(2, 0), (4, 66)],
         ];
-        let opts = ONodes::new(5, os, OptOrder::Seq);
+        let opts = ONodes::new(5, &os, OptOrder::Seq);
         let items_init = items.clone();
         let opts_init = opts.clone();
         let problem = Problem::new(items, opts);
@@ -349,7 +352,7 @@ r y:B
         let mut chooser = mrv_chooser(prefer_any(), rnd_tiebreak(12345678));
         while solver.next_solution(&mut chooser) {
             assert!(i <= expected.len(), "too many solutions");
-            solver.find_options();
+            solver.get_solution();
             solver.o.sort();
             solutions.push(solver.o.clone());
             i += 1;

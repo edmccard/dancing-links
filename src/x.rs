@@ -1,8 +1,6 @@
 use anyhow::{Result, anyhow, bail};
 
-use crate::{
-    Count, Dance, Data, Items, Link, OptOrder, OptSpec, Opts, Solve, Spec,
-};
+use crate::{Count, Dance, Data, Items, Link, OptOrder, Opts, Solve, Spec};
 
 pub fn cover<D: Dance>(i: Link, dance: &mut D) {
     // TODO: increment updates
@@ -15,6 +13,7 @@ pub fn cover<D: Dance>(i: Link, dance: &mut D) {
     let r = *dance.items().rlink(i);
     *dance.items().rlink(l) = r;
     *dance.items().llink(r) = l;
+    *dance.updates() += 1;
 }
 
 pub fn commit<D: Dance>(_: Link, j: Link, dance: &mut D) {
@@ -48,9 +47,9 @@ pub fn hide<D: Dance>(p: Link, dance: &mut D) {
         } else {
             *dance.opts().dlink(u) = d;
             *dance.opts().ulink(d) = u;
-            // TODO: increment updates
             *dance.opts().len(x as Link) -= 1;
             q += 1;
+            *dance.updates() += 1;
         }
     }
 }
@@ -189,7 +188,7 @@ pub struct ONodes {
 }
 
 impl ONodes {
-    pub fn new(n: Count, os: impl OptSpec<Count>, order: OptOrder) -> ONodes {
+    pub fn new(n: Count, os: &[Vec<Count>], order: OptOrder) -> ONodes {
         let mut onodes =
             ONodes { nodes: vec![Default::default(); (n + 2) as usize] };
         onodes.init_links(n, order, os);
@@ -218,7 +217,7 @@ impl ONodes {
             os.push(is);
         }
         let n = spec.primary.len() + spec.secondary.len();
-        let opts = ONodes::new(n, os, order);
+        let opts = ONodes::new(n, &os, order);
         Ok(opts)
     }
 
@@ -231,21 +230,28 @@ impl ONodes {
     }
 }
 
+pub fn make_problem(
+    np: Count, ns: Count, os: &[Vec<Count>], order: OptOrder,
+) -> Problem {
+    Problem::new(INodes::new(np, ns), ONodes::new(np + ns, os, order))
+}
+
 #[derive(Debug, Eq, PartialEq)]
 pub struct Problem {
     items: INodes,
     opts: ONodes,
+    updates: isize,
 }
 
 impl Problem {
     pub fn new(items: INodes, opts: ONodes) -> Problem {
-        Problem { items, opts }
+        Problem { items, opts, updates: 0 }
     }
 
     pub fn from_spec(spec: &Spec, order: OptOrder) -> Result<Problem> {
         let (items, names) = INodes::from_spec(spec)?;
         let opts = ONodes::from_spec(spec, &names, order)?;
-        Ok(Problem { items, opts })
+        Ok(Problem::new(items, opts))
     }
 }
 
@@ -303,6 +309,10 @@ impl Dance for Problem {
 
     fn opts(&mut self) -> &mut Self::O {
         &mut self.opts
+    }
+
+    fn updates(&mut self) -> &mut isize {
+        &mut self.updates
     }
 
     fn cover(&mut self, i: Link) {
@@ -374,7 +384,7 @@ mod tests {
             vec![1, 3],
             vec![2, 4],
         ];
-        let opts = ONodes::new(5, os, OptOrder::Seq);
+        let opts = ONodes::new(5, &os, OptOrder::Seq);
         let onodes = onodes_data();
         assert_eq!(opts.nodes, onodes, "incorrect options");
     }
@@ -410,7 +420,7 @@ r y";
             vec![1, 6],
             vec![3, 4, 6],
         ];
-        let opts = ONodes::new(7, os, OptOrder::Seq);
+        let opts = ONodes::new(7, &os, OptOrder::Seq);
         let items_init = items.clone();
         let opts_init = opts.clone();
         let problem = Problem::new(items, opts);
@@ -421,7 +431,7 @@ r y";
         let mut chooser = mrv_chooser(prefer_any(), no_tiebreak());
         while solver.next_solution(&mut chooser) {
             assert!(i <= expected.len(), "too many solutions");
-            solver.find_options();
+            solver.get_solution();
             solver.o.sort();
             solutions.push(solver.o.clone());
             i += 1;

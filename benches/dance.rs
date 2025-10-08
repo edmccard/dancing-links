@@ -14,7 +14,7 @@ fn bench_dance(c: &mut Criterion) {
         vec![1, 6],
         vec![3, 4, 6],
     ];
-    let opts = ONodes::new(7, os, OptOrder::Seq);
+    let opts = ONodes::new(7, &os, OptOrder::Seq);
     let problem = Problem::new(items, opts);
     let mut solver = Solver::new(problem);
     let mut chooser = mrv_chooser(prefer_any(), no_tiebreak());

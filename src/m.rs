@@ -246,11 +246,12 @@ pub struct Problem {
     items: INodes,
     opts: x::ONodes,
     ft: Vec<Link>,
+    updates: isize,
 }
 
 impl Problem {
     pub fn new(items: INodes, opts: x::ONodes) -> Problem {
-        Problem { items, opts, ft: Vec::new() }
+        Problem { items, opts, ft: Vec::new(), updates: 0 }
     }
 
     pub fn from_spec(spec: &Spec, order: OptOrder) -> Result<Problem> {
@@ -303,6 +304,10 @@ impl Dance for Problem {
 
     fn opts(&mut self) -> &mut Self::O {
         &mut self.opts
+    }
+
+    fn updates(&mut self) -> &mut isize {
+        &mut self.updates
     }
 
     fn cover(&mut self, i: Link) {
@@ -420,7 +425,7 @@ C Y
                 os.push(vec![10 + i, 6 + j, 21 + i + 1 - j, 15 + i + j]);
             }
         }
-        let opts = x::ONodes::new(24, os, OptOrder::Rnd(Rng::new(12345678)));
+        let opts = x::ONodes::new(24, &os, OptOrder::Rnd(Rng::new(12345678)));
 
         let items_init = items.clone();
         let opts_init = opts.clone();
@@ -439,7 +444,7 @@ C Y
         let mut chooser = mrv_chooser(prefer_any(), knuth_tiebreak());
         while solver.next_solution(&mut chooser) {
             assert!(i <= expected.len(), "too many solutions");
-            solver.find_options();
+            solver.get_solution();
             solver.o.sort();
             solutions.push(solver.o.clone());
             i += 1;

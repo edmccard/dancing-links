@@ -30,6 +30,8 @@ pub trait Dance {
     fn items(&mut self) -> &mut Self::I;
     fn opts(&mut self) -> &mut Self::O;
 
+    fn updates(&mut self) -> &mut isize;
+
     fn cover(&mut self, i: Link);
     fn commit(&mut self, p: Link, j: Link);
     fn uncover(&mut self, i: Link);
@@ -63,11 +65,8 @@ pub trait Items {
     }
 }
 
-pub trait OptSpec<T>: IntoIterator<Item: IntoIterator<Item = T>> {}
-impl<T, U> OptSpec<T> for U where U: IntoIterator<Item: IntoIterator<Item = T>> {}
-
 pub trait Opts {
-    type Spec: Default;
+    type Spec: Default + Copy;
 
     fn len(&mut self, i: Link) -> &mut Data;
     fn top(&mut self, i: Link) -> &mut Data;
@@ -77,7 +76,7 @@ pub trait Opts {
     fn set_data(&mut self, pk: Link, s: Self::Spec) -> Link;
 
     fn init_links(
-        &mut self, n: Count, order: OptOrder, os: impl OptSpec<Self::Spec>,
+        &mut self, n: Count, order: OptOrder, os: &[Vec<Self::Spec>],
     ) {
         let mut order = order;
         for i in (1 as Link)..=n {
@@ -87,12 +86,12 @@ pub trait Opts {
         let mut m: Data = 0;
         let mut p: Link = n + 1;
 
-        for opt in os.into_iter() {
+        for opt in os {
             let mut k = 0;
-            for node in opt.into_iter() {
+            for node in opt {
                 k += 1;
                 // Internal item indexes are 1-based.
-                let i = self.set_data(p + k, node) + 1;
+                let i = self.set_data(p + k, *node) + 1;
                 // TODO: i <= Data::MAX
 
                 *self.len(i) += 1;
@@ -136,6 +135,7 @@ pub struct Solver<P> {
     problem: P,
     x: Vec<Link>,
     o: Vec<isize>,
+    profile: Vec<usize>,
     l: Count,
     i: Link,
     restart: bool,
@@ -147,6 +147,7 @@ impl<P: Solve> Solver<P> {
             problem,
             x: Vec::new(),
             o: Vec::new(),
+            profile: Vec::new(),
             l: 0,
             i: 0,
             restart: false,
@@ -156,6 +157,9 @@ impl<P: Solve> Solver<P> {
     pub fn next_solution<C: Choose<P>>(&mut self, chooser: &mut C) -> bool {
         let mut l = self.l;
         let mut i = self.i;
+        if *self.problem.updates() < 0 {
+            *self.problem.updates() = 0;
+        }
 
         loop {
             if self.restart {
@@ -168,9 +172,10 @@ impl<P: Solve> Solver<P> {
             } else {
                 if self.x.len() == l as usize {
                     self.x.push(0);
+                    self.profile.push(0);
+                    self.problem.enter_level(i, l, self.x[l as usize]);
                 }
-                self.problem.enter_level(i, l, self.x[l as usize]);
-                //i = self.choose();
+                self.profile[l] += 1;
                 i = chooser.choose(&mut self.problem);
                 // TODO: return option from choose
                 if self.problem.branch_degree(i) != 0 {
@@ -187,6 +192,7 @@ impl<P: Solve> Solver<P> {
             loop {
                 if l == 0 {
                     self.l = l;
+                    *self.problem.updates() = -*self.problem.updates();
                     return false;
                 }
                 l -= 1;
@@ -199,7 +205,7 @@ impl<P: Solve> Solver<P> {
         }
     }
 
-    pub fn find_options(&mut self) {
+    pub fn get_solution(&mut self) -> &[isize] {
         let n = self.problem.items().len();
         self.o.clear();
         for xj in &self.x[..self.l as usize] {
@@ -214,6 +220,15 @@ impl<P: Solve> Solver<P> {
             // Internal option indexes are 1-based
             self.o.push(-*self.problem.opts().top(r) - 1);
         }
+        &self.o
+    }
+
+    pub fn get_updates(&mut self) -> isize {
+        *self.problem.updates()
+    }
+
+    pub fn get_profile(&self) -> &[usize] {
+        &self.profile
     }
 }
 
