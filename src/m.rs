@@ -14,7 +14,7 @@ pub fn tweak<D: DanceM<I: ItemsM>>(x: Link, p: Link, dance: &mut D) {
 }
 
 pub fn untweak<D: DanceM<I: ItemsM>>(l: Count, unblock: bool, dance: &mut D) {
-    let ftl = dance.ft()[l];
+    let ftl = dance.ft()[l as usize];
     let p = if ftl <= dance.items().len() {
         ftl
     } else {
@@ -58,10 +58,10 @@ pub fn prepare_to_branch<S: SolveM>(
     if *solve.items().bound(i) == 0 {
         solve.cover(i);
         if solve.items().slack(i) != 0 {
-            solve.ft()[l] = xl;
+            solve.ft()[l as usize] = xl;
         }
     } else {
-        solve.ft()[l] = xl;
+        solve.ft()[l as usize] = xl;
     }
 }
 
@@ -177,7 +177,7 @@ impl INodes {
         for (u, v) in ps.into_iter() {
             nodes.push(INode { bound: v, slack: v - u, ..Default::default() });
         }
-        let primary = nodes.len() - 1;
+        let primary = Count(nodes.len() - 1);
         for _ in 0..=ns {
             nodes.push(Default::default());
         }
@@ -228,7 +228,7 @@ impl INodes {
                 bail!("Invalid item name");
             }
         }
-        let ns = spec.secondary.len();
+        let ns = Count(spec.secondary.len());
         Ok((INodes::new(ps, ns), names))
     }
 
@@ -431,7 +431,7 @@ C Y
         let opts_init = opts.clone();
         let problem = Problem::new(items, opts);
         let mut solver = Solver::new(problem);
-        let mut solutions: Vec<Vec<isize>> = Vec::new();
+        let mut solutions: Vec<Vec<Data>> = Vec::new();
         let mut expected = vec![
             vec![0, 1, 5, 6, 8, 11, 14, 15],
             vec![0, 2, 5, 7, 9, 11, 12, 14],

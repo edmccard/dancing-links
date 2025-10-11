@@ -149,8 +149,8 @@ impl INodes {
 
     pub fn from_spec(spec: &Spec) -> Result<(INodes, Vec<String>)> {
         use std::collections::HashSet;
-        let np = spec.primary.len();
-        let ns = spec.secondary.len();
+        let np = Count(spec.primary.len());
+        let ns = Count(spec.secondary.len());
         let mut names = spec.primary.clone();
         names.extend(spec.secondary.clone());
         let mut used = HashSet::new();
@@ -212,11 +212,11 @@ impl ONodes {
                 if !used.insert(itm) {
                     bail!("Duplicate items in option");
                 }
-                is.push(*i);
+                is.push(Count(*i));
             }
             os.push(is);
         }
-        let n = spec.primary.len() + spec.secondary.len();
+        let n = Count(spec.primary.len() + spec.secondary.len());
         let opts = ONodes::new(n, &os, order);
         Ok(opts)
     }
@@ -292,9 +292,8 @@ impl Opts for ONodes {
         &mut self.get_node(i).down
     }
 
-    fn set_data(&mut self, pk: Link, s: Count) -> Link {
+    fn set_data(&mut self, _pk: Link, s: Count) -> Link {
         self.nodes.push(Default::default());
-        assert!(pk < self.nodes.len(), "BLAH {} {}", pk, self.nodes.len());
         s
     }
 }
@@ -425,7 +424,7 @@ r y";
         let opts_init = opts.clone();
         let problem = Problem::new(items, opts);
         let mut solver = Solver::new(problem);
-        let mut solutions: Vec<Vec<isize>> = Vec::new();
+        let mut solutions: Vec<Vec<Data>> = Vec::new();
         let mut expected = vec![vec![0, 3, 4]];
         let mut i = 0;
         let mut chooser = mrv_chooser(prefer_any(), no_tiebreak());

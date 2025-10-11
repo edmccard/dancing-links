@@ -1,6 +1,7 @@
 #![allow(clippy::unnecessary_cast)]
 
 use anyhow::{Result, anyhow, bail};
+use num_traits::AsPrimitive;
 
 use crate::choose::Choose;
 
@@ -10,9 +11,32 @@ pub mod m;
 pub mod mc;
 pub mod choose;
 
-pub type Link = usize;
+#[cfg(not(feature = "64-bit"))]
+pub type Link = u32;
+#[cfg(not(feature = "64-bit"))]
+pub type Data = i32;
+
+#[cfg(feature = "64-bit")]
+pub type Link = u32;
+#[cfg(feature = "64-bit")]
+pub type Data = i32;
+
 pub type Count = Link;
-pub type Data = isize;
+
+#[allow(non_snake_case)]
+pub fn Link<T: AsPrimitive<Link>>(data: T) -> Link {
+    data.as_()
+}
+
+#[allow(non_snake_case)]
+pub fn Count<T: AsPrimitive<Count>>(data: T) -> Count {
+    data.as_()
+}
+
+#[allow(non_snake_case)]
+pub fn Data<T: AsPrimitive<Data>>(data: T) -> Data {
+    data.as_()
+}
 
 const _: () = {
     assert!(Link::MAX as u128 <= u64::MAX as u128);
@@ -134,7 +158,7 @@ pub trait Solve: Dance {
 pub struct Solver<P> {
     problem: P,
     x: Vec<Link>,
-    o: Vec<isize>,
+    o: Vec<Data>,
     profile: Vec<usize>,
     l: Count,
     i: Link,
@@ -175,7 +199,7 @@ impl<P: Solve> Solver<P> {
                     self.profile.push(0);
                     self.problem.enter_level(i, l, self.x[l as usize]);
                 }
-                self.profile[l] += 1;
+                self.profile[l as usize] += 1;
                 i = chooser.choose(&mut self.problem);
                 // TODO: return option from choose
                 if self.problem.branch_degree(i) != 0 {
@@ -205,7 +229,7 @@ impl<P: Solve> Solver<P> {
         }
     }
 
-    pub fn get_solution(&mut self) -> &[isize] {
+    pub fn get_solution(&mut self) -> &[Data] {
         let n = self.problem.items().len();
         self.o.clear();
         for xj in &self.x[..self.l as usize] {

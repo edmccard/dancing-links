@@ -143,11 +143,11 @@ impl ONodes {
                     bail!("Color on primary item");
                 }
                 let color = if color == ' ' { 0 } else { color as Data };
-                is.push((i, color));
+                is.push((Count(i), color));
             }
             os.push(is);
         }
-        let n = spec.primary.len() + spec.secondary.len();
+        let n = Count(spec.primary.len() + spec.secondary.len());
         let opts = ONodes::new(n, &os, OptOrder::Seq);
         Ok(opts)
     }
@@ -346,7 +346,7 @@ r y:B
         let opts_init = opts.clone();
         let problem = Problem::new(items, opts);
         let mut solver = Solver::new(problem);
-        let mut solutions: Vec<Vec<isize>> = Vec::new();
+        let mut solutions: Vec<Vec<Data>> = Vec::new();
         let mut expected = vec![vec![1, 3]];
         let mut i = 0;
         let mut chooser = mrv_chooser(prefer_any(), rnd_tiebreak(12345678));

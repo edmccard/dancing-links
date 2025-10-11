@@ -138,7 +138,7 @@ mod tests {
         let opts_init = opts.clone();
         let problem = Problem::new(items, opts);
         let mut solver = Solver::new(problem);
-        let mut solutions: Vec<Vec<isize>> = Vec::new();
+        let mut solutions: Vec<Vec<Data>> = Vec::new();
         let mut expected = vec![vec![1, 3, 4]];
         let mut i = 0;
         let mut chooser = mrv_chooser(prefer_any(), no_tiebreak());
