@@ -143,11 +143,11 @@ impl ONodes {
                     bail!("Color on primary item");
                 }
                 let color = if color == ' ' { 0 } else { color as Data };
-                is.push((Count(i), color));
+                is.push((i as Count, color));
             }
             os.push(is);
         }
-        let n = Count(spec.primary.len() + spec.secondary.len());
+        let n = (spec.primary.len() + spec.secondary.len()) as Count;
         let opts = ONodes::new(n, &os, OptOrder::Seq);
         Ok(opts)
     }

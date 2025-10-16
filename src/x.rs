@@ -149,8 +149,8 @@ impl INodes {
 
     pub fn from_spec(spec: &Spec) -> Result<(INodes, Vec<String>)> {
         use std::collections::HashSet;
-        let np = Count(spec.primary.len());
-        let ns = Count(spec.secondary.len());
+        let np = spec.primary.len() as Count;
+        let ns = spec.secondary.len() as Count;
         let mut names = spec.primary.clone();
         names.extend(spec.secondary.clone());
         let mut used = HashSet::new();
@@ -212,11 +212,11 @@ impl ONodes {
                 if !used.insert(itm) {
                     bail!("Duplicate items in option");
                 }
-                is.push(Count(*i));
+                is.push(*i as Count);
             }
             os.push(is);
         }
-        let n = Count(spec.primary.len() + spec.secondary.len());
+        let n = (spec.primary.len() + spec.secondary.len()) as Count;
         let opts = ONodes::new(n, &os, order);
         Ok(opts)
     }

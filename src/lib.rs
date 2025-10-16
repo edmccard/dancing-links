@@ -1,5 +1,3 @@
-#![allow(clippy::unnecessary_cast)]
-
 use anyhow::{Result, anyhow, bail};
 use num_traits::AsPrimitive;
 
@@ -9,18 +7,15 @@ pub mod x;
 pub mod c;
 pub mod m;
 pub mod mc;
+pub mod p;
 pub mod choose;
 
 #[cfg(not(feature = "64-bit"))]
-pub type Link = u32;
-#[cfg(not(feature = "64-bit"))]
-pub type Data = i32;
-
+pub type Link = i32;
 #[cfg(feature = "64-bit")]
-pub type Link = u32;
-#[cfg(feature = "64-bit")]
-pub type Data = i32;
+pub type Link = i64;
 
+pub type Data = Link;
 pub type Count = Link;
 
 #[allow(non_snake_case)]
@@ -37,15 +32,6 @@ pub fn Count<T: AsPrimitive<Count>>(data: T) -> Count {
 pub fn Data<T: AsPrimitive<Data>>(data: T) -> Data {
     data.as_()
 }
-
-const _: () = {
-    assert!(Link::MAX as u128 <= u64::MAX as u128);
-    assert!(Count::MAX as u128 <= u64::MAX as u128);
-    assert!(Data::MAX as u128 <= u64::MAX as u128);
-    assert!(Data::MAX as u128 <= Count::MAX as u128);
-    assert!(Data::MAX as u128 <= Link::MAX as u128);
-    assert!(Data::MIN < 0);
-};
 
 pub trait Dance {
     type I: Items;

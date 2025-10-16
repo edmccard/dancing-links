@@ -177,7 +177,7 @@ impl INodes {
         for (u, v) in ps.into_iter() {
             nodes.push(INode { bound: v, slack: v - u, ..Default::default() });
         }
-        let primary = Count(nodes.len() - 1);
+        let primary = (nodes.len() - 1) as Count;
         for _ in 0..=ns {
             nodes.push(Default::default());
         }
@@ -228,7 +228,7 @@ impl INodes {
                 bail!("Invalid item name");
             }
         }
-        let ns = Count(spec.secondary.len());
+        let ns = spec.secondary.len() as Count;
         Ok((INodes::new(ps, ns), names))
     }
 
