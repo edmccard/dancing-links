@@ -4,19 +4,19 @@ use crate::x;
 use crate::{Count, Dance, Data, Link, OptOrder, Opts, Solve, Spec};
 
 pub fn commit<D: DanceC<O: OptsC>>(p: Link, j: Link, dance: &mut D) {
-    if *dance.opts().color(p) == 0 {
+    if *dance.color(p) == 0 {
         dance.cover(j);
     }
-    if *dance.opts().color(p) > 0 {
+    if *dance.color(p) > 0 {
         dance.purify(p);
     }
 }
 
 pub fn uncommit<D: DanceC<O: OptsC>>(p: Link, j: Link, dance: &mut D) {
-    if *dance.opts().color(p) == 0 {
+    if *dance.color(p) == 0 {
         dance.uncover(j)
     }
-    if *dance.opts().color(p) > 0 {
+    if *dance.color(p) > 0 {
         dance.unpurify(p);
     }
 }
@@ -24,16 +24,16 @@ pub fn uncommit<D: DanceC<O: OptsC>>(p: Link, j: Link, dance: &mut D) {
 pub fn hide<D: DanceC<O: OptsC>>(p: Link, dance: &mut D) {
     let mut q = p + 1;
     while q != p {
-        let x = *dance.opts().top(q);
-        let u = *dance.opts().ulink(q);
-        let d = *dance.opts().dlink(q);
+        let x = *dance.top(q);
+        let u = *dance.ulink(q);
+        let d = *dance.dlink(q);
         if x <= 0 {
             q = u;
         } else {
-            if *dance.opts().color(q) >= 0 {
-                *dance.opts().dlink(u) = d;
-                *dance.opts().ulink(d) = u;
-                *dance.opts().len(x as Link) -= 1;
+            if *dance.color(q) >= 0 {
+                *dance.dlink(u) = d;
+                *dance.ulink(d) = u;
+                *dance.len(x as Link) -= 1;
                 *dance.updates() += 1;
             }
             q += 1;
@@ -44,16 +44,16 @@ pub fn hide<D: DanceC<O: OptsC>>(p: Link, dance: &mut D) {
 pub fn unhide<D: DanceC<O: OptsC>>(p: Link, dance: &mut D) {
     let mut q = p - 1;
     while q != p {
-        let x = *dance.opts().top(q);
-        let u = *dance.opts().ulink(q);
-        let d = *dance.opts().dlink(q);
+        let x = *dance.top(q);
+        let u = *dance.ulink(q);
+        let d = *dance.dlink(q);
         if x <= 0 {
             q = d;
         } else {
-            if *dance.opts().color(q) >= 0 {
-                *dance.opts().dlink(u) = q;
-                *dance.opts().ulink(d) = q;
-                *dance.opts().len(x as Link) += 1;
+            if *dance.color(q) >= 0 {
+                *dance.dlink(u) = q;
+                *dance.ulink(d) = q;
+                *dance.len(x as Link) += 1;
             }
             q -= 1;
         }
@@ -61,32 +61,32 @@ pub fn unhide<D: DanceC<O: OptsC>>(p: Link, dance: &mut D) {
 }
 
 pub fn purify<D: DanceC<O: OptsC>>(p: Link, dance: &mut D) {
-    let c = *dance.opts().color(p);
-    let i = *dance.opts().top(p) as Link;
+    let c = *dance.color(p);
+    let i = *dance.top(p) as Link;
     // TODO is this needed?
-    // *dance.opts().color(i) = c;
-    let mut q = *dance.opts().dlink(i);
+    // *dance.color(i) = c;
+    let mut q = *dance.dlink(i);
     while q != i {
-        if *dance.opts().color(q) == c {
-            *dance.opts().color(q) = -1;
+        if *dance.color(q) == c {
+            *dance.color(q) = -1;
         } else {
             dance.hide(q)
         }
-        q = *dance.opts().dlink(q);
+        q = *dance.dlink(q);
     }
 }
 
 pub fn unpurify<D: DanceC<O: OptsC>>(p: Link, dance: &mut D) {
-    let c = *dance.opts().color(p);
-    let i = *dance.opts().top(p) as Link;
-    let mut q = *dance.opts().ulink(i);
+    let c = *dance.color(p);
+    let i = *dance.top(p) as Link;
+    let mut q = *dance.ulink(i);
     while q != i {
-        if *dance.opts().color(q) < 0 {
-            *dance.opts().color(q) = c;
+        if *dance.color(q) < 0 {
+            *dance.color(q) = c;
         } else {
             dance.unhide(q);
         }
-        q = *dance.opts().ulink(q);
+        q = *dance.ulink(q);
     }
 }
 
@@ -152,6 +152,7 @@ impl ONodes {
         Ok(opts)
     }
 
+    #[inline]
     fn get_node(&mut self, i: Link) -> &mut ONode {
         if cfg!(feature = "unsafe-fast-index") {
             unsafe { self.nodes.get_unchecked_mut(i as usize) }
@@ -183,18 +184,22 @@ impl Problem {
 impl Opts for ONodes {
     type Spec = (Count, Data);
 
+    #[inline]
     fn len(&mut self, i: Link) -> &mut Data {
         &mut self.get_node(i).hdr_info
     }
 
+    #[inline]
     fn top(&mut self, i: Link) -> &mut Data {
         &mut self.get_node(i).hdr_info
     }
 
+    #[inline]
     fn ulink(&mut self, i: Link) -> &mut Link {
         &mut self.get_node(i).up
     }
 
+    #[inline]
     fn dlink(&mut self, i: Link) -> &mut Link {
         &mut self.get_node(i).down
     }
@@ -211,6 +216,7 @@ pub trait OptsC: Opts {
 }
 
 impl OptsC for ONodes {
+    #[inline]
     fn color(&mut self, i: Link) -> &mut Data {
         &mut self.get_node(i).color
     }
@@ -220,57 +226,74 @@ impl Dance for Problem {
     type I = x::INodes;
     type O = ONodes;
 
+    #[inline]
     fn items(&mut self) -> &mut Self::I {
         &mut self.items
     }
 
+    #[inline]
     fn opts(&mut self) -> &mut Self::O {
         &mut self.opts
     }
 
+    #[inline]
     fn updates(&mut self) -> &mut isize {
         &mut self.updates
     }
 
+    #[inline]
     fn cover(&mut self, i: Link) {
         x::cover(i, self);
     }
 
+    #[inline]
     fn commit(&mut self, p: Link, j: Link) {
         commit(p, j, self);
     }
 
+    #[inline]
     fn uncover(&mut self, i: Link) {
         x::uncover(i, self);
     }
 
+    #[inline]
     fn uncommit(&mut self, p: Link, j: Link) {
         uncommit(p, j, self);
     }
 
+    #[inline]
     fn hide(&mut self, p: Link) {
         hide(p, self);
     }
 
+    #[inline]
     fn unhide(&mut self, p: Link) {
         unhide(p, self);
     }
 
+    #[inline]
     fn branch_degree(&mut self, i: Link) -> Data {
         x::branch_degree(i, self)
     }
 }
 
-pub trait DanceC: Dance {
+pub trait DanceC: Dance<O: OptsC> {
     fn purify(&mut self, p: Link);
     fn unpurify(&mut self, p: Link);
+
+    #[inline]
+    fn color(&mut self, i: Link) -> &mut Data {
+        self.opts().color(i)
+    }
 }
 
 impl DanceC for Problem {
+    #[inline]
     fn purify(&mut self, p: Link) {
         purify(p, self);
     }
 
+    #[inline]
     fn unpurify(&mut self, p: Link) {
         unpurify(p, self);
     }
@@ -279,18 +302,22 @@ impl DanceC for Problem {
 impl Solve for Problem {
     fn enter_level(&mut self, _: Link, _: Count, _: Link) {}
 
+    #[inline]
     fn prepare_to_branch(&mut self, i: Link, l: Count, xl: Link) {
         x::prepare_to_branch(self, i, l, xl);
     }
 
+    #[inline]
     fn try_item(&mut self, i: Link, _: Count, xl: Link) -> bool {
         x::try_item(self, i, xl)
     }
 
+    #[inline]
     fn try_again(&mut self, i: Link, l: Count, xl: &mut Link) -> bool {
         x::try_again(self, i, l, xl)
     }
 
+    #[inline]
     fn restore_item(&mut self, i: Link, _: Count, _: Link) {
         x::restore_item(self, i);
     }

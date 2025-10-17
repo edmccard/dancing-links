@@ -4,15 +4,15 @@ use crate::{Count, Dance, Data, Items, Link, OptOrder, Opts, Solve, Spec};
 
 pub fn cover<D: Dance>(i: Link, dance: &mut D) {
     // TODO: increment updates
-    let mut p = *dance.opts().dlink(i);
+    let mut p = *dance.dlink(i);
     while p != i {
         dance.hide(p);
-        p = *dance.opts().dlink(p);
+        p = *dance.dlink(p);
     }
-    let l = *dance.items().llink(i);
-    let r = *dance.items().rlink(i);
-    *dance.items().rlink(l) = r;
-    *dance.items().llink(r) = l;
+    let l = *dance.llink(i);
+    let r = *dance.rlink(i);
+    *dance.rlink(l) = r;
+    *dance.llink(r) = l;
     *dance.updates() += 1;
 }
 
@@ -21,14 +21,14 @@ pub fn commit<D: Dance>(_: Link, j: Link, dance: &mut D) {
 }
 
 pub fn uncover<D: Dance>(i: Link, dance: &mut D) {
-    let l = *dance.items().llink(i);
-    let r = *dance.items().rlink(i);
-    *dance.items().rlink(l) = i;
-    *dance.items().llink(r) = i;
-    let mut p = *dance.opts().ulink(i);
+    let l = *dance.llink(i);
+    let r = *dance.rlink(i);
+    *dance.rlink(l) = i;
+    *dance.llink(r) = i;
+    let mut p = *dance.ulink(i);
     while p != i {
         dance.unhide(p);
-        p = *dance.opts().ulink(p);
+        p = *dance.ulink(p);
     }
 }
 
@@ -39,15 +39,15 @@ pub fn uncommit<D: Dance>(_: Link, j: Link, dance: &mut D) {
 pub fn hide<D: Dance>(p: Link, dance: &mut D) {
     let mut q = p + 1;
     while q != p {
-        let x = *dance.opts().top(q);
-        let u = *dance.opts().ulink(q);
-        let d = *dance.opts().dlink(q);
+        let x = *dance.top(q);
+        let u = *dance.ulink(q);
+        let d = *dance.dlink(q);
         if x <= 0 {
             q = u;
         } else {
-            *dance.opts().dlink(u) = d;
-            *dance.opts().ulink(d) = u;
-            *dance.opts().len(x as Link) -= 1;
+            *dance.dlink(u) = d;
+            *dance.ulink(d) = u;
+            *dance.len(x as Link) -= 1;
             q += 1;
             *dance.updates() += 1;
         }
@@ -57,22 +57,22 @@ pub fn hide<D: Dance>(p: Link, dance: &mut D) {
 pub fn unhide<D: Dance>(p: Link, dance: &mut D) {
     let mut q = p - 1;
     while q != p {
-        let x = *dance.opts().top(q);
-        let u = *dance.opts().ulink(q);
-        let d = *dance.opts().dlink(q);
+        let x = *dance.top(q);
+        let u = *dance.ulink(q);
+        let d = *dance.dlink(q);
         if x <= 0 {
             q = d;
         } else {
-            *dance.opts().dlink(u) = q;
-            *dance.opts().ulink(d) = q;
-            *dance.opts().len(x as Link) += 1;
+            *dance.dlink(u) = q;
+            *dance.ulink(d) = q;
+            *dance.len(x as Link) += 1;
             q -= 1;
         }
     }
 }
 
 pub fn branch_degree<D: Dance>(i: Link, dance: &mut D) -> Data {
-    *dance.opts().len(i) as Data
+    *dance.len(i) as Data
 }
 
 pub fn prepare_to_branch<S: Solve>(solve: &mut S, i: Link, _: Link, _: Link) {
@@ -85,9 +85,9 @@ pub fn try_item<S: Solve>(solve: &mut S, i: Link, xl: Link) -> bool {
     }
     let mut p = xl + 1;
     while p != xl {
-        let j = *solve.opts().top(p);
+        let j = *solve.top(p);
         if j <= 0 {
-            p = *solve.opts().ulink(p);
+            p = *solve.ulink(p);
         } else {
             solve.commit(p, j as Link);
             p += 1;
@@ -101,15 +101,15 @@ pub fn try_again<S: Solve>(
 ) -> bool {
     let mut p = *xl - 1;
     while p != *xl {
-        let j = *solve.opts().top(p);
+        let j = *solve.top(p);
         if j <= 0 {
-            p = *solve.opts().dlink(p);
+            p = *solve.dlink(p);
         } else {
             solve.uncommit(p, j as Link);
             p -= 1;
         }
     }
-    *xl = *solve.opts().dlink(*xl);
+    *xl = *solve.dlink(*xl);
     let again = solve.try_item(i, l, *xl);
     if !again {
         solve.restore_item(i, l, *xl);
@@ -166,6 +166,7 @@ impl INodes {
         Ok((INodes::new(np, ns), names))
     }
 
+    #[inline]
     fn get_node(&mut self, i: Link) -> &mut INode {
         if cfg!(feature = "unsafe-fast-index") {
             unsafe { self.nodes.get_unchecked_mut(i as usize) }
@@ -221,6 +222,7 @@ impl ONodes {
         Ok(opts)
     }
 
+    #[inline]
     fn get_node(&mut self, i: Link) -> &mut ONode {
         if cfg!(feature = "unsafe-fast-index") {
             unsafe { self.nodes.get_unchecked_mut(i as usize) }
@@ -256,19 +258,23 @@ impl Problem {
 }
 
 impl Items for INodes {
+    #[inline]
     fn llink(&mut self, i: Link) -> &mut Link {
         &mut self.get_node(i).left
     }
 
+    #[inline]
     fn rlink(&mut self, i: Link) -> &mut Link {
         &mut self.get_node(i).right
     }
 
+    #[inline]
     fn primary(&self) -> Count {
         self.primary
     }
 
-    fn len(&self) -> Count {
+    #[inline]
+    fn count(&self) -> Count {
         self.len
     }
 }
@@ -276,18 +282,22 @@ impl Items for INodes {
 impl Opts for ONodes {
     type Spec = Count;
 
+    #[inline]
     fn len(&mut self, i: Link) -> &mut Data {
         &mut self.get_node(i).hdr_info
     }
 
+    #[inline]
     fn top(&mut self, i: Link) -> &mut Data {
         &mut self.get_node(i).hdr_info
     }
 
+    #[inline]
     fn ulink(&mut self, i: Link) -> &mut Link {
         &mut self.get_node(i).up
     }
 
+    #[inline]
     fn dlink(&mut self, i: Link) -> &mut Link {
         &mut self.get_node(i).down
     }
@@ -302,42 +312,52 @@ impl Dance for Problem {
     type I = INodes;
     type O = ONodes;
 
+    #[inline]
     fn items(&mut self) -> &mut Self::I {
         &mut self.items
     }
 
+    #[inline]
     fn opts(&mut self) -> &mut Self::O {
         &mut self.opts
     }
 
+    #[inline]
     fn updates(&mut self) -> &mut isize {
         &mut self.updates
     }
 
+    #[inline]
     fn cover(&mut self, i: Link) {
         cover(i, self);
     }
 
+    #[inline]
     fn commit(&mut self, p: Link, j: Link) {
         commit(p, j, self);
     }
 
+    #[inline]
     fn uncover(&mut self, i: Link) {
         uncover(i, self);
     }
 
+    #[inline]
     fn uncommit(&mut self, p: Link, j: Link) {
         uncommit(p, j, self);
     }
 
+    #[inline]
     fn hide(&mut self, p: Link) {
         hide(p, self);
     }
 
+    #[inline]
     fn unhide(&mut self, p: Link) {
         unhide(p, self);
     }
 
+    #[inline]
     fn branch_degree(&mut self, i: Link) -> Data {
         branch_degree(i, self)
     }
@@ -346,18 +366,22 @@ impl Dance for Problem {
 impl Solve for Problem {
     fn enter_level(&mut self, _: Link, _: Count, _: Link) {}
 
+    #[inline]
     fn prepare_to_branch(&mut self, i: Link, l: Count, xl: Link) {
         prepare_to_branch(self, i, l, xl);
     }
 
+    #[inline]
     fn try_item(&mut self, i: Link, _: Count, xl: Link) -> bool {
         try_item(self, i, xl)
     }
 
+    #[inline]
     fn try_again(&mut self, i: Link, l: Count, xl: &mut Link) -> bool {
         try_again(self, i, l, xl)
     }
 
+    #[inline]
     fn restore_item(&mut self, i: Link, _: Count, _: Link) {
         restore_item(self, i);
     }

@@ -11,11 +11,15 @@ pub mod p;
 pub mod choose;
 
 #[cfg(not(feature = "64-bit"))]
-pub type Link = i32;
-#[cfg(feature = "64-bit")]
-pub type Link = i64;
+pub type Link = u32;
+#[cfg(not(feature = "64-bit"))]
+pub type Data = i32;
 
-pub type Data = Link;
+#[cfg(feature = "64-bit")]
+pub type Link = u64;
+#[cfg(feature = "64-bit")]
+pub type Data = i64;
+
 pub type Count = Link;
 
 #[allow(non_snake_case)]
@@ -40,6 +44,36 @@ pub trait Dance {
     fn items(&mut self) -> &mut Self::I;
     fn opts(&mut self) -> &mut Self::O;
 
+    #[inline]
+    fn llink(&mut self, i: Link) -> &mut Link {
+        self.items().llink(i)
+    }
+
+    #[inline]
+    fn rlink(&mut self, i: Link) -> &mut Link {
+        self.items().rlink(i)
+    }
+
+    #[inline]
+    fn dlink(&mut self, i: Link) -> &mut Link {
+        self.opts().dlink(i)
+    }
+
+    #[inline]
+    fn ulink(&mut self, i: Link) -> &mut Link {
+        self.opts().ulink(i)
+    }
+
+    #[inline]
+    fn top(&mut self, i: Link) -> &mut Data {
+        self.opts().top(i)
+    }
+
+    #[inline]
+    fn len(&mut self, i: Link) -> &mut Data {
+        self.opts().len(i)
+    }
+
     fn updates(&mut self) -> &mut isize;
 
     fn cover(&mut self, i: Link);
@@ -57,11 +91,11 @@ pub trait Items {
     fn rlink(&mut self, i: Link) -> &mut Link;
 
     fn primary(&self) -> Count;
-    fn len(&self) -> Count;
+    fn count(&self) -> Count;
 
     fn init_links(&mut self) {
         let n1 = self.primary();
-        let n = self.len();
+        let n = self.count();
         for i in (1 as Link)..=n {
             *self.llink(i) = i - 1;
             *self.rlink(i - 1) = i;
@@ -216,7 +250,7 @@ impl<P: Solve> Solver<P> {
     }
 
     pub fn get_solution(&mut self) -> &[Data] {
-        let n = self.problem.items().len();
+        let n = self.problem.items().count();
         self.o.clear();
         for xj in &self.x[..self.l as usize] {
             let mut r = *xj;

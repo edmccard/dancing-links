@@ -27,88 +27,108 @@ impl Dance for Problem {
     type I = m::INodes;
     type O = c::ONodes;
 
+    #[inline]
     fn items(&mut self) -> &mut Self::I {
         &mut self.items
     }
 
+    #[inline]
     fn opts(&mut self) -> &mut Self::O {
         &mut self.opts
     }
 
+    #[inline]
     fn updates(&mut self) -> &mut isize {
         &mut self.updates
     }
 
+    #[inline]
     fn cover(&mut self, i: Link) {
         x::cover(i, self);
     }
 
+    #[inline]
     fn commit(&mut self, p: Link, j: Link) {
         c::commit(p, j, self);
     }
 
+    #[inline]
     fn uncover(&mut self, i: Link) {
         x::uncover(i, self);
     }
 
+    #[inline]
     fn uncommit(&mut self, p: Link, j: Link) {
         c::uncommit(p, j, self);
     }
 
+    #[inline]
     fn hide(&mut self, p: Link) {
         c::hide(p, self);
     }
 
+    #[inline]
     fn unhide(&mut self, p: Link) {
         c::unhide(p, self);
     }
 
+    #[inline]
     fn branch_degree(&mut self, i: Link) -> Data {
         m::branch_degree(i, self)
     }
 }
 
 impl c::DanceC for Problem {
+    #[inline]
     fn purify(&mut self, p: Link) {
         c::purify(p, self);
     }
 
+    #[inline]
     fn unpurify(&mut self, p: Link) {
         c::unpurify(p, self);
     }
 }
 
 impl m::DanceM for Problem {
+    #[inline]
     fn tweak(&mut self, x: Link, p: Link) {
         m::tweak(x, p, self);
     }
 
+    #[inline]
     fn untweak(&mut self, l: Count, unblock: bool) {
         m::untweak(l, unblock, self);
     }
 
+    #[inline]
     fn ft(&mut self) -> &mut Vec<Link> {
         &mut self.ft
     }
 }
 
 impl Solve for Problem {
+    #[inline]
     fn enter_level(&mut self, i: Link, l: Count, xl: Link) {
         m::enter_level(self, i, l, xl);
     }
 
+    #[inline]
     fn prepare_to_branch(&mut self, i: Link, l: Count, xl: Link) {
         m::prepare_to_branch(self, i, l, xl);
     }
 
+    #[inline]
     fn try_item(&mut self, i: Link, l: Count, xl: Link) -> bool {
         m::try_item(self, i, l, xl)
     }
 
+    #[inline]
     fn try_again(&mut self, i: Link, l: Count, xl: &mut Link) -> bool {
         m::try_again(self, i, l, xl)
     }
 
+    #[inline]
     fn restore_item(&mut self, i: Link, l: Count, xl: Link) {
         m::restore_item(self, i, l, xl);
     }
