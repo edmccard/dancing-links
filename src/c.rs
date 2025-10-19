@@ -104,11 +104,13 @@ pub struct ONodes {
 }
 
 impl ONodes {
-    pub fn new(n: Count, os: &[Vec<(Count, Data)>], order: OptOrder) -> ONodes {
+    pub fn new(
+        n: Count, np: Count, os: &[Vec<(Count, Data)>], order: OptOrder,
+    ) -> ONodes {
         // TODO: ensure primary have color 0
         let mut nodes =
             ONodes { nodes: vec![Default::default(); (n + 2) as usize] };
-        nodes.init_links(n, order, os);
+        nodes.init_links(n, np, order, os);
         nodes
     }
 
@@ -148,7 +150,8 @@ impl ONodes {
             os.push(is);
         }
         let n = (spec.primary.len() + spec.secondary.len()) as Count;
-        let opts = ONodes::new(n, &os, OptOrder::Seq);
+        let opts =
+            ONodes::new(n, spec.primary.len() as Count, &os, OptOrder::Seq);
         Ok(opts)
     }
 
@@ -207,6 +210,10 @@ impl Opts for ONodes {
     fn set_data(&mut self, pk: Link, s: (Count, Data)) -> Link {
         self.nodes.push(Default::default());
         *self.color(pk) = s.1;
+        s.0
+    }
+
+    fn get_spec_item(s: Self::Spec) -> Link {
         s.0
     }
 }
@@ -336,7 +343,7 @@ mod tests {
             vec![(1, 0), (3, 65)],
             vec![(2, 0), (4, 66)],
         ];
-        let opts = ONodes::new(5, &os, OptOrder::Seq);
+        let opts = ONodes::new(5, 3, &os, OptOrder::Seq);
         let onodes = onodes_data();
         assert_eq!(opts.nodes, onodes, "incorrect options");
     }
@@ -368,7 +375,7 @@ r y:B
             vec![(1, 0), (3, 65)],
             vec![(2, 0), (4, 66)],
         ];
-        let opts = ONodes::new(5, &os, OptOrder::Seq);
+        let opts = ONodes::new(5, 3, &os, OptOrder::Seq);
         let items_init = items.clone();
         let opts_init = opts.clone();
         let problem = Problem::new(items, opts);

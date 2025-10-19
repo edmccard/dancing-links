@@ -153,7 +153,7 @@ mod tests {
             vec![(1, 0), (3, 1)],
             vec![(2, 0), (4, 1)],
         ];
-        let opts = c::ONodes::new(5, &os, OptOrder::Seq);
+        let opts = c::ONodes::new(5, 3, &os, OptOrder::Seq);
         let items_init = items.clone();
         let opts_init = opts.clone();
         let problem = Problem::new(items, opts);

@@ -457,7 +457,8 @@ C Y
                 os.push(vec![10 + i, 6 + j, 21 + i + 1 - j, 15 + i + j]);
             }
         }
-        let opts = x::ONodes::new(24, &os, OptOrder::Rnd(Rng::new(12345678)));
+        let opts =
+            x::ONodes::new(24, 24, &os, OptOrder::Rnd(Rng::new(12345678)));
 
         let items_init = items.clone();
         let opts_init = opts.clone();

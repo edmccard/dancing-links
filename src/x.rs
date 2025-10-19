@@ -189,10 +189,12 @@ pub struct ONodes {
 }
 
 impl ONodes {
-    pub fn new(n: Count, os: &[Vec<Count>], order: OptOrder) -> ONodes {
+    pub fn new(
+        n: Count, np: Count, os: &[Vec<Count>], order: OptOrder,
+    ) -> ONodes {
         let mut onodes =
             ONodes { nodes: vec![Default::default(); (n + 2) as usize] };
-        onodes.init_links(n, order, os);
+        onodes.init_links(n, np, order, os);
         onodes
     }
 
@@ -218,7 +220,7 @@ impl ONodes {
             os.push(is);
         }
         let n = (spec.primary.len() + spec.secondary.len()) as Count;
-        let opts = ONodes::new(n, &os, order);
+        let opts = ONodes::new(n, spec.primary.len() as Count, &os, order);
         Ok(opts)
     }
 
@@ -235,7 +237,7 @@ impl ONodes {
 pub fn make_problem(
     np: Count, ns: Count, os: &[Vec<Count>], order: OptOrder,
 ) -> Problem {
-    Problem::new(INodes::new(np, ns), ONodes::new(np + ns, os, order))
+    Problem::new(INodes::new(np, ns), ONodes::new(np + ns, np, os, order))
 }
 
 #[derive(Debug, Eq, PartialEq)]
@@ -304,6 +306,10 @@ impl Opts for ONodes {
 
     fn set_data(&mut self, _pk: Link, s: Count) -> Link {
         self.nodes.push(Default::default());
+        s
+    }
+
+    fn get_spec_item(s: Self::Spec) -> Link {
         s
     }
 }
@@ -407,7 +413,7 @@ mod tests {
             vec![1, 3],
             vec![2, 4],
         ];
-        let opts = ONodes::new(5, &os, OptOrder::Seq);
+        let opts = ONodes::new(5, 3, &os, OptOrder::Seq);
         let onodes = onodes_data();
         assert_eq!(opts.nodes, onodes, "incorrect options");
     }
@@ -443,7 +449,7 @@ r y";
             vec![1, 6],
             vec![3, 4, 6],
         ];
-        let opts = ONodes::new(7, &os, OptOrder::Seq);
+        let opts = ONodes::new(7, 7, &os, OptOrder::Seq);
         let items_init = items.clone();
         let opts_init = opts.clone();
         let problem = Problem::new(items, opts);

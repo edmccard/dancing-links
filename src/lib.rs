@@ -118,9 +118,10 @@ pub trait Opts {
     fn dlink(&mut self, i: Link) -> &mut Link;
 
     fn set_data(&mut self, pk: Link, s: Self::Spec) -> Link;
+    fn get_spec_item(s: Self::Spec) -> Link;
 
     fn init_links(
-        &mut self, n: Count, order: OptOrder, os: &[Vec<Self::Spec>],
+        &mut self, n: Count, np: Count, order: OptOrder, os: &[Vec<Self::Spec>],
     ) {
         let mut order = order;
         for i in (1 as Link)..=n {
@@ -132,37 +133,44 @@ pub trait Opts {
 
         for opt in os {
             let mut k = 0;
-            for node in opt {
-                k += 1;
-                // Internal item indexes are 1-based.
-                let i = self.set_data(p + k, *node) + 1;
-                // TODO: i <= Data::MAX
-
-                *self.len(i) += 1;
-                let q = match order {
-                    OptOrder::Seq => *self.ulink(i),
-                    OptOrder::Rnd(ref mut rng) => {
-                        let mut i = i;
-                        let p = rng.uniform(*self.len(i) as u32);
-                        for _ in 0..p {
-                            i = *self.dlink(i);
-                        }
-                        i
-                    }
-                };
-                let qd = *self.dlink(q);
-                *self.ulink(p + k) = q;
-                *self.dlink(p + k) = qd;
-                *self.dlink(q) = p + k;
-                *self.ulink(qd) = p + k;
-                *self.top(p + k) = i as Data;
-            }
             m += 1;
-            *self.dlink(p) = p + k;
-            p = p + k + 1;
-            self.set_data(p, Default::default());
-            *self.top(p) = -m;
-            *self.ulink(p) = p - k;
+            let mut has_primary = false;
+            for node in opt {
+                if Self::get_spec_item(*node) < np {
+                    has_primary = true;
+                }
+            }
+            if has_primary {
+                for node in opt {
+                    k += 1;
+                    // Internal item indexes are 1-based.
+                    let i = self.set_data(p + k, *node) + 1;
+                    *self.len(i) += 1;
+                    let q = match order {
+                        OptOrder::Seq => *self.ulink(i),
+                        OptOrder::Rnd(ref mut rng) => {
+                            let mut i = i;
+                            let p = rng.uniform(*self.len(i) as u32);
+                            for _ in 0..p {
+                                i = *self.dlink(i);
+                            }
+                            i
+                        }
+                    };
+                    let qd = *self.dlink(q);
+                    *self.ulink(p + k) = q;
+                    *self.dlink(p + k) = qd;
+                    *self.dlink(q) = p + k;
+                    *self.ulink(qd) = p + k;
+                    *self.top(p + k) = i as Data;
+                }
+                *self.dlink(p) = p + k;
+                // add spacer
+                p = p + k + 1;
+                self.set_data(p, Default::default());
+                *self.top(p) = -m;
+                *self.ulink(p) = p - k;
+            }
         }
     }
 }
