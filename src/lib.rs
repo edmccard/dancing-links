@@ -95,6 +95,7 @@ pub trait Items {
 
     fn init_links(&mut self) {
         let n1 = self.primary();
+        assert!(n1 > 0, "No primary items");
         let n = self.count();
         for i in (1 as Link)..=n {
             *self.llink(i) = i - 1;
@@ -133,45 +134,50 @@ pub trait Opts {
 
         for opt in os {
             let mut k = 0;
-            m += 1;
             let mut has_primary = false;
             for node in opt {
                 if Self::get_spec_item(*node) < np {
                     has_primary = true;
                 }
             }
-            if has_primary {
-                for node in opt {
-                    k += 1;
-                    // Internal item indexes are 1-based.
-                    let i = self.set_data(p + k, *node) + 1;
-                    *self.len(i) += 1;
-                    let q = match order {
-                        OptOrder::Seq => *self.ulink(i),
-                        OptOrder::Rnd(ref mut rng) => {
-                            let mut i = i;
-                            let p = rng.uniform(*self.len(i) as u32);
-                            for _ in 0..p {
-                                i = *self.dlink(i);
-                            }
-                            i
-                        }
-                    };
-                    let qd = *self.dlink(q);
-                    *self.ulink(p + k) = q;
-                    *self.dlink(p + k) = qd;
-                    *self.dlink(q) = p + k;
-                    *self.ulink(qd) = p + k;
-                    *self.top(p + k) = i as Data;
-                }
-                *self.dlink(p) = p + k;
-                // add spacer
-                p = p + k + 1;
-                self.set_data(p, Default::default());
-                *self.top(p) = -m;
-                *self.ulink(p) = p - k;
+            // Options without primary items are skipped but the option
+            // number is still incremented so that the options match their
+            // position in the input data.
+            m += 1;
+            if !has_primary {
+                continue;
             }
+            for node in opt {
+                k += 1;
+                // Internal item indexes are 1-based.
+                let i = self.set_data(p + k, *node) + 1;
+                *self.len(i) += 1;
+                let q = match order {
+                    OptOrder::Seq => *self.ulink(i),
+                    OptOrder::Rnd(ref mut rng) => {
+                        let mut i = i;
+                        let p = rng.uniform(*self.len(i) as u32);
+                        for _ in 0..p {
+                            i = *self.dlink(i);
+                        }
+                        i
+                    }
+                };
+                let qd = *self.dlink(q);
+                *self.ulink(p + k) = q;
+                *self.dlink(p + k) = qd;
+                *self.dlink(q) = p + k;
+                *self.ulink(qd) = p + k;
+                *self.top(p + k) = i as Data;
+            }
+            *self.dlink(p) = p + k;
+            // add spacer
+            p = p + k + 1;
+            self.set_data(p, Default::default());
+            *self.top(p) = -m;
+            *self.ulink(p) = p - k;
         }
+        assert!(m > 0, "No options");
     }
 }
 
@@ -321,6 +327,9 @@ impl Spec {
             Vec::new()
         };
         let mut primary = items[0].to_vec();
+        if primary.is_empty() {
+            bail!("No primary items");
+        }
         primary.sort_by(|a, b| {
             let a_sharp = a.contains("#");
             let b_sharp = b.contains("#");
