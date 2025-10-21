@@ -5,9 +5,8 @@ use crate::c::DanceC;
 use crate::x;
 use crate::{Count, Dance, Data, Items, Link};
 
-// Less principled but simpler to pretend XC problems
-// are XCC problems with null colors. There is probably a
-// better way to do this.
+type OSpec<R> = <R as Reduce>::Spec;
+
 pub trait Reduce: Dance {
     type Spec;
     fn get_color(&mut self, n: Link) -> Data;
@@ -20,6 +19,7 @@ impl Reduce for x::Problem {
     fn get_color(&mut self, _n: Link) -> Data {
         0
     }
+
     fn get_opt_data(&self, i: Count, _c: Data) -> Count {
         i
     }
@@ -63,7 +63,7 @@ impl<'a, R: Reduce> Preproc<'a, R> {
 
     pub fn reduce(
         &mut self, max_rounds: usize,
-    ) -> Result<(Count, Count, Vec<Count>, Vec<Vec<<R as Reduce>::Spec>>)> {
+    ) -> Result<(Count, Count, Vec<Vec<OSpec<R>>>, Vec<Count>)> {
         for p_itm in 1..=self.problem.items().primary() {
             if *self.problem.len(p_itm) == 0 {
                 bail!("Primary item {} is not in any option", p_itm);
@@ -85,7 +85,7 @@ impl<'a, R: Reduce> Preproc<'a, R> {
         let is = self.get_items();
         let (np, ns) = (is.0.len() as Count, is.1.len() as Count);
         let os = self.get_options();
-        Ok((np, ns, os.0, os.1))
+        Ok((np, ns, os.1, os.0))
     }
 
     fn get_items(&mut self) -> (Vec<Count>, Vec<Count>) {
@@ -104,7 +104,7 @@ impl<'a, R: Reduce> Preproc<'a, R> {
         (ps, ss)
     }
 
-    fn get_options(&mut self) -> (Vec<Count>, Vec<Vec<<R as Reduce>::Spec>>) {
+    fn get_options(&mut self) -> (Vec<Count>, Vec<Vec<OSpec<R>>>) {
         // TODO: Verify that secondary are sequential like primary
         let (ps, ss) = self.get_items();
         let sd = if ss.is_empty() {
@@ -134,15 +134,13 @@ impl<'a, R: Reduce> Preproc<'a, R> {
         (idx, os)
     }
 
-    fn get_option(
-        &mut self, p: Link, sd: Count,
-    ) -> (Count, Vec<<R as Reduce>::Spec>) {
+    fn get_option(&mut self, p: Link, sd: Count) -> (Count, Vec<OSpec<R>>) {
         let mut p = p - 1;
         while *self.problem.top(p) > 0 || *self.problem.dlink(p) < p {
             p -= 1;
         }
         let mut q = p + 1;
-        let mut o: Vec<<R as Reduce>::Spec> = Vec::new();
+        let mut o: Vec<OSpec<R>> = Vec::new();
         loop {
             let itm = *self.problem.top(q);
             if itm < 0 {
@@ -468,7 +466,7 @@ mod tests {
         let opts = ONodes::new(5, 3, &os, OptOrder::Seq);
         let mut problem = Problem::new(items, opts);
         let mut preproc = Preproc::new(&mut problem);
-        let (np, ns, orig, os) = preproc.reduce(200).unwrap();
+        let (np, ns, os, orig) = preproc.reduce(200).unwrap();
         assert_eq!((np, ns), (2, 2));
         assert_eq!(orig, vec![1, 3]);
         assert_eq!(
@@ -493,7 +491,7 @@ mod tests {
         let opts = ONodes::new(7, 5, &os, OptOrder::Seq);
         let mut problem = Problem::new(items, opts);
         let mut preproc = Preproc::new(&mut problem);
-        let (np, ns, orig, os) = preproc.reduce(200).unwrap();
+        let (np, ns, os, orig) = preproc.reduce(200).unwrap();
         assert_eq!((np, ns), (3, 0));
         assert_eq!(orig, vec![3, 4, 0]);
         assert_eq!(os, vec![vec![0], vec![1], vec![2]]);

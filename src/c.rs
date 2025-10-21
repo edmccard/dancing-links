@@ -165,6 +165,12 @@ impl ONodes {
     }
 }
 
+pub fn make_problem(
+    np: Count, ns: Count, os: &[Vec<(Count, Data)>], order: OptOrder,
+) -> Problem {
+    Problem::new(x::INodes::new(np, ns), ONodes::new(np + ns, np, os, order))
+}
+
 #[derive(Debug, Eq, PartialEq)]
 pub struct Problem {
     items: x::INodes,

@@ -282,7 +282,7 @@ impl<P: Solve> Solver<P> {
     }
 
     pub fn get_updates(&mut self) -> isize {
-        *self.problem.updates()
+        self.problem.updates().abs()
     }
 
     pub fn get_profile(&self) -> &[usize] {
