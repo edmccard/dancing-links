@@ -462,8 +462,8 @@ C Y
 
         let items_init = items.clone();
         let opts_init = opts.clone();
-        let problem = Problem::new(items, opts);
-        let mut solver = Solver::new(problem);
+        let mut problem = Problem::new(items, opts);
+        let mut solver = Solver::new(&mut problem);
         let mut solutions: Vec<Vec<Data>> = Vec::new();
         let mut expected = vec![
             vec![0, 1, 5, 6, 8, 11, 14, 15],
@@ -477,7 +477,7 @@ C Y
         let mut chooser = mrv_chooser(prefer_any(), knuth_tiebreak());
         while solver.next_solution(&mut chooser) {
             assert!(i <= expected.len(), "too many solutions");
-            solver.get_solution();
+            solver.fmt_solution();
             solver.o.sort();
             solutions.push(solver.o.clone());
             i += 1;

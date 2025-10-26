@@ -1,6 +1,6 @@
 [package]
 name = "dlx"
-version = "0.5.0"
+version = "0.6.0"
 edition = "2024"
 authors = ["Ed McCardell <edmccard@hotmail.com>"]
 description = """
@@ -13,7 +13,7 @@ license = "MIT/Apache-2.0"
 
 [features]
 "unsafe-fast-index" = []
-"64-bit" = []
+"32-bit" = []
 
 [dependencies]
 anyhow = "1.0"
@@ -21,6 +21,7 @@ num-traits = "0.2"
 
 [dev-dependencies]
 criterion = { version = "0.5", features = ["html_reports"] }
+termcolor = "1.4.1"
 
 [[bench]]
 name = "dance"

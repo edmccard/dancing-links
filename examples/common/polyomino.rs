@@ -1,20 +1,19 @@
 use dlx::Count;
 
-type Coord = Count;
 type Cell = (Count, Count);
 
 type Shape = Omino;
 
 fn rectangle(rows: usize, cols: usize) -> Shape {
     let c = (0..rows)
-        .flat_map(|i| (0..cols).map(move |j| (j as Coord, i as Coord)))
+        .flat_map(|i| (0..cols).map(move |j| (Count(j), Count(i))))
         .collect();
     Shape {
         c,
         xmin: 0,
         ymin: 0,
-        xmax: (cols - 1) as Coord,
-        ymax: (rows - 1) as Coord,
+        xmax: Count(cols - 1),
+        ymax: Count(rows - 1),
     }
 }
 
@@ -38,10 +37,10 @@ fn pentominoes() -> Vec<Omino> {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Omino {
     c: Vec<Cell>,
-    xmin: Coord,
-    xmax: Coord,
-    ymin: Coord,
-    ymax: Coord,
+    xmin: Count,
+    xmax: Count,
+    ymin: Count,
+    ymax: Count,
 }
 
 impl Omino {
@@ -60,6 +59,16 @@ impl Omino {
         o
     }
 
+    pub fn all_options(ps: &[Omino], bx: &Shape) -> Vec<Vec<Count>> {
+        let mut os = Vec::new();
+        for (i, p) in ps.iter().enumerate() {
+            for base in p.bases() {
+                os.extend(base.options(Count(i), bx));
+            }
+        }
+        os
+    }
+
     fn normalize(&mut self) {
         for i in 0..self.c.len() {
             self.c[i] = (self.c[i].0 - self.xmin, self.c[i].1 - self.ymin);
@@ -70,7 +79,7 @@ impl Omino {
         self.ymin = 0;
     }
 
-    fn rotate(&self) -> Omino {
+    pub fn rotate(&self) -> Omino {
         Omino::new(
             &self
                 .c
@@ -80,7 +89,7 @@ impl Omino {
         )
     }
 
-    fn reflect(&self) -> Omino {
+    pub fn reflect(&self) -> Omino {
         Omino::new(&self.c.iter().map(|(x, y)| (*y, *x)).collect::<Vec<_>>())
     }
 
@@ -119,19 +128,25 @@ impl Omino {
         b
     }
 
-    pub fn options(&self, name: Coord, shape: &Shape) -> Vec<Vec<Coord>> {
+    pub fn options(&self, name: Count, shape: &Shape) -> Vec<Vec<Count>> {
         self.options_within(
             name, shape.xmin, shape.ymin, shape.xmax, shape.ymax, shape,
         )
     }
 
     pub fn options_within(
-        &self, name: Coord, xmin: Coord, ymin: Coord, xmax: Coord, ymax: Coord,
+        &self, name: Count, xmin: Count, ymin: Count, xmax: Count, ymax: Count,
         shape: &Shape,
-    ) -> Vec<Vec<Coord>> {
+    ) -> Vec<Vec<Count>> {
         // TODO? generalize to arbitrary subshapes
         let mut os = Vec::new();
+        if self.ymax > ymax {
+            return os;
+        }
         for yd in ymin..=(ymax - self.ymax) {
+            if self.xmax > xmax {
+                continue;
+            }
             for xd in xmin..=(xmax - self.xmax) {
                 let mut cells = self
                     .c
@@ -141,16 +156,25 @@ impl Omino {
                             .c
                             .iter()
                             .position(|&c| (c.0, c.1) == (x + xd, y + yd))
-                            .map(|p| p as Coord)
+                            .map(|p| Count(p))
                     })
                     .collect::<Vec<_>>();
                 if cells.len() == self.c.len() {
-                    cells.push(name + shape.c.len() as Coord);
+                    cells.push(name + Count(shape.c.len()));
                     os.push(cells);
                 }
             }
         }
         os
+    }
+
+    pub fn cell_at(&self, idx: Count) -> (usize, usize) {
+        let idx = idx as usize;
+        (self.c[idx].0 as usize, self.c[idx].1 as usize)
+    }
+
+    pub fn size(&self) -> usize {
+        self.c.len()
     }
 
     pub fn show(&self) {

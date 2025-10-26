@@ -20,13 +20,13 @@ fn main() {
     rate_problem(&clues);
 }
 
-fn verify_problem(problem: Problem) -> Vec<Data> {
+fn verify_problem(mut problem: Problem) -> Vec<Data> {
     let mut chooser = mrv_chooser(prefer_any(), no_tiebreak());
-    let mut solver = Solver::new(problem);
+    let mut solver = Solver::new(&mut problem);
     let mut n = 0;
     let mut solutions = Vec::new();
     while solver.next_solution(&mut chooser) {
-        solutions.push(solver.get_solution().to_vec());
+        solutions.push(solver.fmt_solution().to_vec());
         n += 1;
         if n > 1 {
             panic!("Too many solutions");
@@ -45,8 +45,9 @@ fn rate_problem(clues: &Clues) {
     let mut profile = Vec::new();
     for _ in 0..10 {
         let seed = seeds.next();
-        let (problem, ..) = clues.make_problem(OptOrder::Rnd(Rng::new(seed)));
-        let mut solver = Solver::new(problem);
+        let (mut problem, ..) =
+            clues.make_problem(OptOrder::Rnd(Rng::new(seed)));
+        let mut solver = Solver::new(&mut problem);
         solver.next_solution(&mut chooser);
         profile.push(solver.get_profile().iter().sum::<usize>());
         updates.push(solver.get_updates());

@@ -10,15 +10,15 @@ pub mod mc;
 pub mod p;
 pub mod choose;
 
-#[cfg(not(feature = "64-bit"))]
-pub type Link = u32;
-#[cfg(not(feature = "64-bit"))]
-pub type Data = i32;
-
-#[cfg(feature = "64-bit")]
+#[cfg(not(feature = "32-bit"))]
 pub type Link = u64;
-#[cfg(feature = "64-bit")]
+#[cfg(not(feature = "32-bit"))]
 pub type Data = i64;
+
+#[cfg(feature = "32-bit")]
+pub type Link = u32;
+#[cfg(feature = "32-bit")]
+pub type Data = i32;
 
 pub type Count = Link;
 
@@ -189,8 +189,8 @@ pub trait Solve: Dance {
     fn restore_item(&mut self, i: Link, l: Count, xl: Link);
 }
 
-pub struct Solver<P> {
-    problem: P,
+pub struct Solver<'a, P> {
+    problem: &'a mut P,
     x: Vec<Link>,
     o: Vec<Data>,
     profile: Vec<usize>,
@@ -199,8 +199,8 @@ pub struct Solver<P> {
     restart: bool,
 }
 
-impl<P: Solve> Solver<P> {
-    pub fn new(problem: P) -> Solver<P> {
+impl<'a, P: Solve> Solver<'a, P> {
+    pub fn new(problem: &'a mut P) -> Solver<'a, P> {
         Solver {
             problem,
             x: Vec::new(),
@@ -263,7 +263,7 @@ impl<P: Solve> Solver<P> {
         }
     }
 
-    pub fn get_solution(&mut self) -> &[Data] {
+    pub fn fmt_solution(&mut self) -> &[Data] {
         let n = self.problem.items().count();
         self.o.clear();
         for xj in &self.x[..self.l as usize] {

@@ -452,15 +452,15 @@ r y";
         let opts = ONodes::new(7, 7, &os, OptOrder::Seq);
         let items_init = items.clone();
         let opts_init = opts.clone();
-        let problem = Problem::new(items, opts);
-        let mut solver = Solver::new(problem);
+        let mut problem = Problem::new(items, opts);
+        let mut solver = Solver::new(&mut problem);
         let mut solutions: Vec<Vec<Data>> = Vec::new();
         let mut expected = vec![vec![0, 3, 4]];
         let mut i = 0;
         let mut chooser = mrv_chooser(prefer_any(), no_tiebreak());
         while solver.next_solution(&mut chooser) {
             assert!(i <= expected.len(), "too many solutions");
-            solver.get_solution();
+            solver.fmt_solution();
             solver.o.sort();
             solutions.push(solver.o.clone());
             i += 1;

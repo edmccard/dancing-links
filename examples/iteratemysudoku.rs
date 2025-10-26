@@ -1,6 +1,6 @@
 // In most implementations of the dancing links algorithm, the `solve` method
-// is recursive; it will not return until all solutions are found. This crate
-// provides an iterative method (`next_solution`), so you can get the
+// is recursive; it will not return until all solutions are found. The `dlx`
+// crate provides an iterative method (`next_solution`), so you can get the
 // solutions one at a time.
 
 extern crate dlx;
@@ -16,9 +16,9 @@ fn main() {
     let clues = Clues::from_sdm(puzzle);
     print_grid(&clues.p);
     println!("");
-    let (problem, os, names) = clues.make_problem(OptOrder::Seq);
+    let (mut problem, os, names) = clues.make_problem(OptOrder::Seq);
     let chooser = mrv_chooser(prefer_any(), no_tiebreak());
-    let solutions = SolveIter { solver: Solver::new(problem), chooser };
+    let solutions = SolveIter { solver: Solver::new(&mut problem), chooser };
 
     for solution in solutions {
         print_grid(&clues.solution_grid(&solution, &os, &names));
@@ -26,17 +26,17 @@ fn main() {
     }
 }
 
-struct SolveIter<P, C> {
-    solver: Solver<P>,
+struct SolveIter<'a, P, C> {
+    solver: Solver<'a, P>,
     chooser: C,
 }
 
-impl<P: Solve, C: Choose<P>> Iterator for SolveIter<P, C> {
+impl<'a, P: Solve, C: Choose<P>> Iterator for SolveIter<'a, P, C> {
     type Item = Vec<Data>;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.solver.next_solution(&mut self.chooser) {
-            Some(self.solver.get_solution().to_vec())
+            Some(self.solver.fmt_solution().to_vec())
         } else {
             None
         }

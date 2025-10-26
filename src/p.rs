@@ -3,19 +3,18 @@ use anyhow::{Result, bail};
 use crate::c;
 use crate::c::DanceC;
 use crate::x;
-use crate::{Count, Dance, Data, Items, Link};
+use crate::{Count, Dance, Data, Items, Link, Opts};
 
-type OSpec<R> = <R as Reduce>::Spec;
+type OSpec<R> = <<R as Dance>::O as Opts>::Spec;
 
 pub trait Reduce: Dance {
-    type Spec;
     fn get_color(&mut self, n: Link) -> Data;
-    fn get_opt_data(&self, i: Count, c: Data) -> Self::Spec;
+    fn get_opt_data(
+        &self, i: Count, c: Data,
+    ) -> <<Self as Dance>::O as Opts>::Spec;
 }
 
 impl Reduce for x::Problem {
-    type Spec = Count;
-
     fn get_color(&mut self, _n: Link) -> Data {
         0
     }
@@ -26,8 +25,6 @@ impl Reduce for x::Problem {
 }
 
 impl Reduce for c::Problem {
-    type Spec = (Count, Data);
-
     fn get_color(&mut self, n: Link) -> Data {
         *self.color(n)
     }
