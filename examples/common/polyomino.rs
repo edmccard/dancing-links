@@ -1,19 +1,19 @@
-use dlx::Count;
+use dlx::Uint;
 
-type Cell = (Count, Count);
+type Cell = (Uint, Uint);
 
 type Shape = Omino;
 
 fn rectangle(rows: usize, cols: usize) -> Shape {
     let c = (0..rows)
-        .flat_map(|i| (0..cols).map(move |j| (Count(j), Count(i))))
+        .flat_map(|i| (0..cols).map(move |j| (Uint(j), Uint(i))))
         .collect();
     Shape {
         c,
         xmin: 0,
         ymin: 0,
-        xmax: Count(cols - 1),
-        ymax: Count(rows - 1),
+        xmax: Uint(cols - 1),
+        ymax: Uint(rows - 1),
     }
 }
 
@@ -37,10 +37,10 @@ fn pentominoes() -> Vec<Omino> {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Omino {
     c: Vec<Cell>,
-    xmin: Count,
-    xmax: Count,
-    ymin: Count,
-    ymax: Count,
+    xmin: Uint,
+    xmax: Uint,
+    ymin: Uint,
+    ymax: Uint,
 }
 
 impl Omino {
@@ -59,11 +59,11 @@ impl Omino {
         o
     }
 
-    pub fn all_options(ps: &[Omino], bx: &Shape) -> Vec<Vec<Count>> {
+    pub fn all_options(ps: &[Omino], bx: &Shape) -> Vec<Vec<Uint>> {
         let mut os = Vec::new();
         for (i, p) in ps.iter().enumerate() {
             for base in p.bases() {
-                os.extend(base.options(Count(i), bx));
+                os.extend(base.options(Uint(i), bx));
             }
         }
         os
@@ -128,16 +128,16 @@ impl Omino {
         b
     }
 
-    pub fn options(&self, name: Count, shape: &Shape) -> Vec<Vec<Count>> {
+    pub fn options(&self, name: Uint, shape: &Shape) -> Vec<Vec<Uint>> {
         self.options_within(
             name, shape.xmin, shape.ymin, shape.xmax, shape.ymax, shape,
         )
     }
 
     pub fn options_within(
-        &self, name: Count, xmin: Count, ymin: Count, xmax: Count, ymax: Count,
+        &self, name: Uint, xmin: Uint, ymin: Uint, xmax: Uint, ymax: Uint,
         shape: &Shape,
-    ) -> Vec<Vec<Count>> {
+    ) -> Vec<Vec<Uint>> {
         // TODO? generalize to arbitrary subshapes
         let mut os = Vec::new();
         if self.ymax > ymax {
@@ -156,11 +156,11 @@ impl Omino {
                             .c
                             .iter()
                             .position(|&c| (c.0, c.1) == (x + xd, y + yd))
-                            .map(|p| Count(p))
+                            .map(|p| Uint(p))
                     })
                     .collect::<Vec<_>>();
                 if cells.len() == self.c.len() {
-                    cells.push(name + Count(shape.c.len()));
+                    cells.push(name + Uint(shape.c.len()));
                     os.push(cells);
                 }
             }
@@ -168,7 +168,7 @@ impl Omino {
         os
     }
 
-    pub fn cell_at(&self, idx: Count) -> (usize, usize) {
+    pub fn cell_at(&self, idx: Uint) -> (usize, usize) {
         let idx = idx as usize;
         (self.c[idx].0 as usize, self.c[idx].1 as usize)
     }

@@ -11,29 +11,22 @@ pub mod p;
 pub mod choose;
 
 #[cfg(not(feature = "32-bit"))]
-pub type Link = u64;
+pub type Uint = u64;
 #[cfg(not(feature = "32-bit"))]
-pub type Data = i64;
+pub type Int = i64;
 
 #[cfg(feature = "32-bit")]
-pub type Link = u32;
+pub type Uint = u32;
 #[cfg(feature = "32-bit")]
-pub type Data = i32;
-
-pub type Count = Link;
+pub type Int = i32;
 
 #[allow(non_snake_case)]
-pub fn Link<T: AsPrimitive<Link>>(data: T) -> Link {
+pub fn Uint<T: AsPrimitive<Uint>>(data: T) -> Uint {
     data.as_()
 }
 
 #[allow(non_snake_case)]
-pub fn Count<T: AsPrimitive<Count>>(data: T) -> Count {
-    data.as_()
-}
-
-#[allow(non_snake_case)]
-pub fn Data<T: AsPrimitive<Data>>(data: T) -> Data {
+pub fn Int<T: AsPrimitive<Int>>(data: T) -> Int {
     data.as_()
 }
 
@@ -45,59 +38,59 @@ pub trait Dance {
     fn opts(&mut self) -> &mut Self::O;
 
     #[inline]
-    fn llink(&mut self, i: Link) -> &mut Link {
+    fn llink(&mut self, i: Uint) -> &mut Uint {
         self.items().llink(i)
     }
 
     #[inline]
-    fn rlink(&mut self, i: Link) -> &mut Link {
+    fn rlink(&mut self, i: Uint) -> &mut Uint {
         self.items().rlink(i)
     }
 
     #[inline]
-    fn dlink(&mut self, i: Link) -> &mut Link {
+    fn dlink(&mut self, i: Uint) -> &mut Uint {
         self.opts().dlink(i)
     }
 
     #[inline]
-    fn ulink(&mut self, i: Link) -> &mut Link {
+    fn ulink(&mut self, i: Uint) -> &mut Uint {
         self.opts().ulink(i)
     }
 
     #[inline]
-    fn top(&mut self, i: Link) -> &mut Data {
+    fn top(&mut self, i: Uint) -> &mut Int {
         self.opts().top(i)
     }
 
     #[inline]
-    fn len(&mut self, i: Link) -> &mut Data {
+    fn len(&mut self, i: Uint) -> &mut Int {
         self.opts().len(i)
     }
 
     fn updates(&mut self) -> &mut isize;
 
-    fn cover(&mut self, i: Link);
-    fn commit(&mut self, p: Link, j: Link);
-    fn uncover(&mut self, i: Link);
-    fn uncommit(&mut self, p: Link, j: Link);
-    fn hide(&mut self, p: Link);
-    fn unhide(&mut self, p: Link);
-    fn branch_degree(&mut self, i: Link) -> Data;
+    fn cover(&mut self, i: Uint);
+    fn commit(&mut self, p: Uint, j: Uint);
+    fn uncover(&mut self, i: Uint);
+    fn uncommit(&mut self, p: Uint, j: Uint);
+    fn hide(&mut self, p: Uint);
+    fn unhide(&mut self, p: Uint);
+    fn branch_degree(&mut self, i: Uint) -> Int;
 }
 
 #[allow(clippy::len_without_is_empty)]
 pub trait Items {
-    fn llink(&mut self, i: Link) -> &mut Link;
-    fn rlink(&mut self, i: Link) -> &mut Link;
+    fn llink(&mut self, i: Uint) -> &mut Uint;
+    fn rlink(&mut self, i: Uint) -> &mut Uint;
 
-    fn primary(&self) -> Count;
-    fn count(&self) -> Count;
+    fn primary(&self) -> Uint;
+    fn count(&self) -> Uint;
 
     fn init_links(&mut self) {
         let n1 = self.primary();
         assert!(n1 > 0, "No primary items");
         let n = self.count();
-        for i in (1 as Link)..=n {
+        for i in (1 as Uint)..=n {
             *self.llink(i) = i - 1;
             *self.rlink(i - 1) = i;
         }
@@ -113,24 +106,24 @@ pub trait Items {
 pub trait Opts {
     type Spec: Default + Copy;
 
-    fn len(&mut self, i: Link) -> &mut Data;
-    fn top(&mut self, i: Link) -> &mut Data;
-    fn ulink(&mut self, i: Link) -> &mut Link;
-    fn dlink(&mut self, i: Link) -> &mut Link;
+    fn len(&mut self, i: Uint) -> &mut Int;
+    fn top(&mut self, i: Uint) -> &mut Int;
+    fn ulink(&mut self, i: Uint) -> &mut Uint;
+    fn dlink(&mut self, i: Uint) -> &mut Uint;
 
-    fn set_data(&mut self, pk: Link, s: Self::Spec) -> Link;
-    fn get_spec_item(s: Self::Spec) -> Link;
+    fn set_data(&mut self, pk: Uint, s: Self::Spec) -> Uint;
+    fn get_spec_item(s: Self::Spec) -> Uint;
 
     fn init_links(
-        &mut self, n: Count, np: Count, order: OptOrder, os: &[Vec<Self::Spec>],
+        &mut self, n: Uint, np: Uint, order: OptOrder, os: &[Vec<Self::Spec>],
     ) {
         let mut order = order;
-        for i in (1 as Link)..=n {
+        for i in (1 as Uint)..=n {
             *self.ulink(i) = i;
             *self.dlink(i) = i;
         }
-        let mut m: Data = 0;
-        let mut p: Link = n + 1;
+        let mut m: Int = 0;
+        let mut p: Uint = n + 1;
 
         for opt in os {
             let mut k = 0;
@@ -168,7 +161,7 @@ pub trait Opts {
                 *self.dlink(p + k) = qd;
                 *self.dlink(q) = p + k;
                 *self.ulink(qd) = p + k;
-                *self.top(p + k) = i as Data;
+                *self.top(p + k) = i as Int;
             }
             *self.dlink(p) = p + k;
             // add spacer
@@ -182,20 +175,20 @@ pub trait Opts {
 }
 
 pub trait Solve: Dance {
-    fn enter_level(&mut self, i: Link, l: Count, xl: Link);
-    fn prepare_to_branch(&mut self, i: Link, l: Count, xl: Link);
-    fn try_item(&mut self, i: Link, l: Count, xl: Link) -> bool;
-    fn try_again(&mut self, i: Link, l: Count, xl: &mut Link) -> bool;
-    fn restore_item(&mut self, i: Link, l: Count, xl: Link);
+    fn enter_level(&mut self, i: Uint, l: Uint, xl: Uint);
+    fn prepare_to_branch(&mut self, i: Uint, l: Uint, xl: Uint);
+    fn try_item(&mut self, i: Uint, l: Uint, xl: Uint) -> bool;
+    fn try_again(&mut self, i: Uint, l: Uint, xl: &mut Uint) -> bool;
+    fn restore_item(&mut self, i: Uint, l: Uint, xl: Uint);
 }
 
 pub struct Solver<'a, P> {
     problem: &'a mut P,
-    x: Vec<Link>,
-    o: Vec<Data>,
+    x: Vec<Uint>,
+    o: Vec<Int>,
     profile: Vec<usize>,
-    l: Count,
-    i: Link,
+    l: Uint,
+    i: Uint,
     restart: bool,
 }
 
@@ -254,7 +247,7 @@ impl<'a, P: Solve> Solver<'a, P> {
                     return false;
                 }
                 l -= 1;
-                i = *self.problem.opts().top(self.x[l as usize]) as Link;
+                i = *self.problem.opts().top(self.x[l as usize]) as Uint;
                 if self.problem.try_again(i, l, &mut self.x[l as usize]) {
                     l += 1;
                     break;
@@ -263,7 +256,7 @@ impl<'a, P: Solve> Solver<'a, P> {
         }
     }
 
-    pub fn fmt_solution(&mut self) -> &[Data] {
+    pub fn fmt_solution(&mut self) -> &[Int] {
         let n = self.problem.items().count();
         self.o.clear();
         for xj in &self.x[..self.l as usize] {

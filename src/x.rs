@@ -1,8 +1,8 @@
 use anyhow::{Result, anyhow, bail};
 
-use crate::{Count, Dance, Data, Items, Link, OptOrder, Opts, Solve, Spec};
+use crate::{Dance, Int, Items, OptOrder, Opts, Solve, Spec, Uint};
 
-pub fn cover<D: Dance>(i: Link, dance: &mut D) {
+pub fn cover<D: Dance>(i: Uint, dance: &mut D) {
     // TODO: increment updates
     let mut p = *dance.dlink(i);
     while p != i {
@@ -16,11 +16,11 @@ pub fn cover<D: Dance>(i: Link, dance: &mut D) {
     *dance.updates() += 1;
 }
 
-pub fn commit<D: Dance>(_: Link, j: Link, dance: &mut D) {
+pub fn commit<D: Dance>(_: Uint, j: Uint, dance: &mut D) {
     cover(j, dance);
 }
 
-pub fn uncover<D: Dance>(i: Link, dance: &mut D) {
+pub fn uncover<D: Dance>(i: Uint, dance: &mut D) {
     let l = *dance.llink(i);
     let r = *dance.rlink(i);
     *dance.rlink(l) = i;
@@ -32,11 +32,11 @@ pub fn uncover<D: Dance>(i: Link, dance: &mut D) {
     }
 }
 
-pub fn uncommit<D: Dance>(_: Link, j: Link, dance: &mut D) {
+pub fn uncommit<D: Dance>(_: Uint, j: Uint, dance: &mut D) {
     uncover(j, dance);
 }
 
-pub fn hide<D: Dance>(p: Link, dance: &mut D) {
+pub fn hide<D: Dance>(p: Uint, dance: &mut D) {
     let mut q = p + 1;
     while q != p {
         let x = *dance.top(q);
@@ -47,14 +47,14 @@ pub fn hide<D: Dance>(p: Link, dance: &mut D) {
         } else {
             *dance.dlink(u) = d;
             *dance.ulink(d) = u;
-            *dance.len(x as Link) -= 1;
+            *dance.len(x as Uint) -= 1;
             q += 1;
             *dance.updates() += 1;
         }
     }
 }
 
-pub fn unhide<D: Dance>(p: Link, dance: &mut D) {
+pub fn unhide<D: Dance>(p: Uint, dance: &mut D) {
     let mut q = p - 1;
     while q != p {
         let x = *dance.top(q);
@@ -65,21 +65,21 @@ pub fn unhide<D: Dance>(p: Link, dance: &mut D) {
         } else {
             *dance.dlink(u) = q;
             *dance.ulink(d) = q;
-            *dance.len(x as Link) += 1;
+            *dance.len(x as Uint) += 1;
             q -= 1;
         }
     }
 }
 
-pub fn branch_degree<D: Dance>(i: Link, dance: &mut D) -> Data {
-    *dance.len(i) as Data
+pub fn branch_degree<D: Dance>(i: Uint, dance: &mut D) -> Int {
+    *dance.len(i) as Int
 }
 
-pub fn prepare_to_branch<S: Solve>(solve: &mut S, i: Link, _: Link, _: Link) {
+pub fn prepare_to_branch<S: Solve>(solve: &mut S, i: Uint, _: Uint, _: Uint) {
     solve.cover(i);
 }
 
-pub fn try_item<S: Solve>(solve: &mut S, i: Link, xl: Link) -> bool {
+pub fn try_item<S: Solve>(solve: &mut S, i: Uint, xl: Uint) -> bool {
     if xl == i {
         return false;
     }
@@ -89,7 +89,7 @@ pub fn try_item<S: Solve>(solve: &mut S, i: Link, xl: Link) -> bool {
         if j <= 0 {
             p = *solve.ulink(p);
         } else {
-            solve.commit(p, j as Link);
+            solve.commit(p, j as Uint);
             p += 1;
         }
     }
@@ -97,7 +97,7 @@ pub fn try_item<S: Solve>(solve: &mut S, i: Link, xl: Link) -> bool {
 }
 
 pub fn try_again<S: Solve>(
-    solve: &mut S, i: Link, l: Count, xl: &mut Link,
+    solve: &mut S, i: Uint, l: Uint, xl: &mut Uint,
 ) -> bool {
     let mut p = *xl - 1;
     while p != *xl {
@@ -105,7 +105,7 @@ pub fn try_again<S: Solve>(
         if j <= 0 {
             p = *solve.dlink(p);
         } else {
-            solve.uncommit(p, j as Link);
+            solve.uncommit(p, j as Uint);
             p -= 1;
         }
     }
@@ -117,27 +117,27 @@ pub fn try_again<S: Solve>(
     again
 }
 
-pub fn restore_item<S: Solve>(solve: &mut S, i: Link) {
+pub fn restore_item<S: Solve>(solve: &mut S, i: Uint) {
     solve.uncover(i);
 }
 
 #[derive(Copy, Clone, Debug, Default, Eq, PartialEq)]
 pub struct INode {
-    left: Link,
-    right: Link,
+    left: Uint,
+    right: Uint,
 }
 
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct INodes {
     nodes: Vec<INode>,
-    primary: Count,
-    len: Count,
+    primary: Uint,
+    len: Uint,
 }
 
 impl INodes {
-    pub fn new(np: Count, ns: Count) -> INodes {
-        assert!((np as u64) < Data::MAX as u64);
-        assert!((ns as u64) < Data::MAX as u64);
+    pub fn new(np: Uint, ns: Uint) -> INodes {
+        assert!((np as u64) < Int::MAX as u64);
+        assert!((ns as u64) < Int::MAX as u64);
         let mut nodes = INodes {
             nodes: vec![Default::default(); (np + ns + 2) as usize],
             primary: np,
@@ -149,8 +149,8 @@ impl INodes {
 
     pub fn from_spec(spec: &Spec) -> Result<(INodes, Vec<String>)> {
         use std::collections::HashSet;
-        let np = spec.primary.len() as Count;
-        let ns = spec.secondary.len() as Count;
+        let np = spec.primary.len() as Uint;
+        let ns = spec.secondary.len() as Uint;
         let mut names = spec.primary.clone();
         names.extend(spec.secondary.clone());
         let mut used = HashSet::new();
@@ -167,7 +167,7 @@ impl INodes {
     }
 
     #[inline]
-    fn get_node(&mut self, i: Link) -> &mut INode {
+    fn get_node(&mut self, i: Uint) -> &mut INode {
         if cfg!(feature = "unsafe-fast-index") {
             unsafe { self.nodes.get_unchecked_mut(i as usize) }
         } else {
@@ -178,9 +178,9 @@ impl INodes {
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 struct ONode {
-    hdr_info: Data,
-    up: Link,
-    down: Link,
+    hdr_info: Int,
+    up: Uint,
+    down: Uint,
 }
 
 #[derive(Clone, Default, Debug, Eq, PartialEq)]
@@ -189,9 +189,7 @@ pub struct ONodes {
 }
 
 impl ONodes {
-    pub fn new(
-        n: Count, np: Count, os: &[Vec<Count>], order: OptOrder,
-    ) -> ONodes {
+    pub fn new(n: Uint, np: Uint, os: &[Vec<Uint>], order: OptOrder) -> ONodes {
         let mut onodes =
             ONodes { nodes: vec![Default::default(); (n + 2) as usize] };
         onodes.init_links(n, np, order, os);
@@ -215,17 +213,17 @@ impl ONodes {
                 if !used.insert(itm) {
                     bail!("Duplicate items in option");
                 }
-                is.push(*i as Count);
+                is.push(*i as Uint);
             }
             os.push(is);
         }
-        let n = (spec.primary.len() + spec.secondary.len()) as Count;
-        let opts = ONodes::new(n, spec.primary.len() as Count, &os, order);
+        let n = (spec.primary.len() + spec.secondary.len()) as Uint;
+        let opts = ONodes::new(n, spec.primary.len() as Uint, &os, order);
         Ok(opts)
     }
 
     #[inline]
-    fn get_node(&mut self, i: Link) -> &mut ONode {
+    fn get_node(&mut self, i: Uint) -> &mut ONode {
         if cfg!(feature = "unsafe-fast-index") {
             unsafe { self.nodes.get_unchecked_mut(i as usize) }
         } else {
@@ -235,7 +233,7 @@ impl ONodes {
 }
 
 pub fn make_problem(
-    np: Count, ns: Count, os: &[Vec<Count>], order: OptOrder,
+    np: Uint, ns: Uint, os: &[Vec<Uint>], order: OptOrder,
 ) -> Problem {
     Problem::new(INodes::new(np, ns), ONodes::new(np + ns, np, os, order))
 }
@@ -261,55 +259,55 @@ impl Problem {
 
 impl Items for INodes {
     #[inline]
-    fn llink(&mut self, i: Link) -> &mut Link {
+    fn llink(&mut self, i: Uint) -> &mut Uint {
         &mut self.get_node(i).left
     }
 
     #[inline]
-    fn rlink(&mut self, i: Link) -> &mut Link {
+    fn rlink(&mut self, i: Uint) -> &mut Uint {
         &mut self.get_node(i).right
     }
 
     #[inline]
-    fn primary(&self) -> Count {
+    fn primary(&self) -> Uint {
         self.primary
     }
 
     #[inline]
-    fn count(&self) -> Count {
+    fn count(&self) -> Uint {
         self.len
     }
 }
 
 impl Opts for ONodes {
-    type Spec = Count;
+    type Spec = Uint;
 
     #[inline]
-    fn len(&mut self, i: Link) -> &mut Data {
+    fn len(&mut self, i: Uint) -> &mut Int {
         &mut self.get_node(i).hdr_info
     }
 
     #[inline]
-    fn top(&mut self, i: Link) -> &mut Data {
+    fn top(&mut self, i: Uint) -> &mut Int {
         &mut self.get_node(i).hdr_info
     }
 
     #[inline]
-    fn ulink(&mut self, i: Link) -> &mut Link {
+    fn ulink(&mut self, i: Uint) -> &mut Uint {
         &mut self.get_node(i).up
     }
 
     #[inline]
-    fn dlink(&mut self, i: Link) -> &mut Link {
+    fn dlink(&mut self, i: Uint) -> &mut Uint {
         &mut self.get_node(i).down
     }
 
-    fn set_data(&mut self, _pk: Link, s: Count) -> Link {
+    fn set_data(&mut self, _pk: Uint, s: Uint) -> Uint {
         self.nodes.push(Default::default());
         s
     }
 
-    fn get_spec_item(s: Self::Spec) -> Link {
+    fn get_spec_item(s: Self::Spec) -> Uint {
         s
     }
 }
@@ -334,61 +332,61 @@ impl Dance for Problem {
     }
 
     #[inline]
-    fn cover(&mut self, i: Link) {
+    fn cover(&mut self, i: Uint) {
         cover(i, self);
     }
 
     #[inline]
-    fn commit(&mut self, p: Link, j: Link) {
+    fn commit(&mut self, p: Uint, j: Uint) {
         commit(p, j, self);
     }
 
     #[inline]
-    fn uncover(&mut self, i: Link) {
+    fn uncover(&mut self, i: Uint) {
         uncover(i, self);
     }
 
     #[inline]
-    fn uncommit(&mut self, p: Link, j: Link) {
+    fn uncommit(&mut self, p: Uint, j: Uint) {
         uncommit(p, j, self);
     }
 
     #[inline]
-    fn hide(&mut self, p: Link) {
+    fn hide(&mut self, p: Uint) {
         hide(p, self);
     }
 
     #[inline]
-    fn unhide(&mut self, p: Link) {
+    fn unhide(&mut self, p: Uint) {
         unhide(p, self);
     }
 
     #[inline]
-    fn branch_degree(&mut self, i: Link) -> Data {
+    fn branch_degree(&mut self, i: Uint) -> Int {
         branch_degree(i, self)
     }
 }
 
 impl Solve for Problem {
-    fn enter_level(&mut self, _: Link, _: Count, _: Link) {}
+    fn enter_level(&mut self, _: Uint, _: Uint, _: Uint) {}
 
     #[inline]
-    fn prepare_to_branch(&mut self, i: Link, l: Count, xl: Link) {
+    fn prepare_to_branch(&mut self, i: Uint, l: Uint, xl: Uint) {
         prepare_to_branch(self, i, l, xl);
     }
 
     #[inline]
-    fn try_item(&mut self, i: Link, _: Count, xl: Link) -> bool {
+    fn try_item(&mut self, i: Uint, _: Uint, xl: Uint) -> bool {
         try_item(self, i, xl)
     }
 
     #[inline]
-    fn try_again(&mut self, i: Link, l: Count, xl: &mut Link) -> bool {
+    fn try_again(&mut self, i: Uint, l: Uint, xl: &mut Uint) -> bool {
         try_again(self, i, l, xl)
     }
 
     #[inline]
-    fn restore_item(&mut self, i: Link, _: Count, _: Link) {
+    fn restore_item(&mut self, i: Uint, _: Uint, _: Uint) {
         restore_item(self, i);
     }
 }
@@ -406,7 +404,7 @@ mod tests {
 
     #[test]
     fn test_opt_init() {
-        let os: Vec<Vec<Count>> = vec![
+        let os: Vec<Vec<Uint>> = vec![
             vec![0, 1, 3, 4],
             vec![0, 2, 3, 4],
             vec![0, 3],
@@ -441,7 +439,7 @@ r y";
         use crate::Solver;
         use crate::choose::*;
         let items = INodes::new(7, 0);
-        let os: Vec<Vec<Count>> = vec![
+        let os: Vec<Vec<Uint>> = vec![
             vec![2, 4],
             vec![0, 3, 6],
             vec![1, 2, 5],
@@ -454,7 +452,7 @@ r y";
         let opts_init = opts.clone();
         let mut problem = Problem::new(items, opts);
         let mut solver = Solver::new(&mut problem);
-        let mut solutions: Vec<Vec<Data>> = Vec::new();
+        let mut solutions: Vec<Vec<Int>> = Vec::new();
         let mut expected = vec![vec![0, 3, 4]];
         let mut i = 0;
         let mut chooser = mrv_chooser(prefer_any(), no_tiebreak());

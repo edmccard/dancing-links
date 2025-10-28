@@ -20,7 +20,7 @@ fn main() {
     rate_problem(&clues);
 }
 
-fn verify_problem(mut problem: Problem) -> Vec<Data> {
+fn verify_problem(mut problem: Problem) -> Vec<Int> {
     let mut chooser = mrv_chooser(prefer_any(), no_tiebreak());
     let mut solver = Solver::new(&mut problem);
     let mut n = 0;

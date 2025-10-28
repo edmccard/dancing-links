@@ -14,13 +14,13 @@ fn main() {
     let mut os = Vec::new();
     for p in 0..9 {
         for base in ps[p].bases() {
-            os.extend(base.options(Count(p), &bx));
+            os.extend(base.options(Uint(p), &bx));
         }
     }
     os.extend(ps[9].options_within(9, 0, 0, 5, 3, &bx));
     for p in 10..12 {
         for base in ps[p].bases() {
-            os.extend(base.options(Count(p), &bx));
+            os.extend(base.options(Uint(p), &bx));
         }
     }
 

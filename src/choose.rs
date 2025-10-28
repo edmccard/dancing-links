@@ -1,21 +1,21 @@
 use std::marker::PhantomData;
 
 use crate::m::ItemsM;
-use crate::{Dance, Data, Items, Link, Opts, Rng};
+use crate::{Dance, Int, Items, Opts, Rng, Uint};
 
 pub trait Choose<D: Dance> {
-    fn choose(&mut self, dance: &mut D) -> Link;
+    fn choose(&mut self, dance: &mut D) -> Uint;
 }
 
 pub trait Preference {
-    fn prefer(&self, i: Link) -> bool;
+    fn prefer(&self, i: Uint) -> bool;
 }
 
 pub trait Tiebreak {
     type D: Dance;
 
     fn reset(&mut self);
-    fn replace(&mut self, i0: Link, i1: Link, dance: &mut Self::D) -> bool;
+    fn replace(&mut self, i0: Uint, i1: Uint, dance: &mut Self::D) -> bool;
 }
 
 pub fn mrv_chooser<D: Dance, P: Preference, T: Tiebreak<D = D>>(
@@ -28,7 +28,7 @@ pub fn prefer_any() -> impl Preference {
     PreferAny
 }
 
-pub fn prefer_first_n(n: Link) -> impl Preference {
+pub fn prefer_first_n(n: Uint) -> impl Preference {
     PreferFirstN(n)
 }
 
@@ -54,8 +54,8 @@ struct MRVChooser<P, T> {
 }
 
 impl<P: Preference, T: Tiebreak> MRVChooser<P, T> {
-    fn choose(&mut self, dance: &mut T::D) -> Link {
-        let mut min = Data::MAX;
+    fn choose(&mut self, dance: &mut T::D) -> Uint {
+        let mut min = Int::MAX;
         let mut p = *dance.items().rlink(0);
         let mut i = p;
         while p != 0 {
@@ -80,7 +80,7 @@ impl<P: Preference, T: Tiebreak> MRVChooser<P, T> {
 impl<D: Dance, P: Preference, T: Tiebreak<D = D>> Choose<D>
     for MRVChooser<P, T>
 {
-    fn choose(&mut self, links: &mut T::D) -> Link {
+    fn choose(&mut self, links: &mut T::D) -> Uint {
         self.choose(links)
     }
 }
@@ -88,15 +88,15 @@ impl<D: Dance, P: Preference, T: Tiebreak<D = D>> Choose<D>
 struct PreferAny;
 
 impl Preference for PreferAny {
-    fn prefer(&self, _: Link) -> bool {
+    fn prefer(&self, _: Uint) -> bool {
         true
     }
 }
 
-struct PreferFirstN(Link);
+struct PreferFirstN(Uint);
 
 impl Preference for PreferFirstN {
-    fn prefer(&self, i: Link) -> bool {
+    fn prefer(&self, i: Uint) -> bool {
         i < self.0
     }
 }
@@ -107,7 +107,7 @@ impl<D: Dance> Tiebreak for NoTiebreak<D> {
     type D = D;
 
     fn reset(&mut self) {}
-    fn replace(&mut self, _: Link, _: Link, _: &mut D) -> bool {
+    fn replace(&mut self, _: Uint, _: Uint, _: &mut D) -> bool {
         false
     }
 }
@@ -124,7 +124,7 @@ impl<D: Dance> Tiebreak for RndTiebreak<D> {
         self.c = 1;
     }
 
-    fn replace(&mut self, _: Link, _: Link, _: &mut Self::D) -> bool {
+    fn replace(&mut self, _: Uint, _: Uint, _: &mut Self::D) -> bool {
         self.c += 1;
         self.rng.uniform(self.c) == 0
     }
@@ -137,7 +137,7 @@ impl<D: Dance<I: ItemsM>> Tiebreak for KnuthTiebreak<D> {
 
     fn reset(&mut self) {}
 
-    fn replace(&mut self, i0: Link, i1: Link, dance: &mut Self::D) -> bool {
+    fn replace(&mut self, i0: Uint, i1: Uint, dance: &mut Self::D) -> bool {
         dance.items().slack(i1) < dance.items().slack(i0)
             || (dance.items().slack(i1) == dance.items().slack(i0)
                 && *dance.opts().len(i1) > *dance.opts().len(i0))

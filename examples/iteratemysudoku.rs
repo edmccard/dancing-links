@@ -32,7 +32,7 @@ struct SolveIter<'a, P, C> {
 }
 
 impl<'a, P: Solve, C: Choose<P>> Iterator for SolveIter<'a, P, C> {
-    type Item = Vec<Data>;
+    type Item = Vec<Int>;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.solver.next_solution(&mut self.chooser) {

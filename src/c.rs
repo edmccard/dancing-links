@@ -1,9 +1,9 @@
 use anyhow::{Result, anyhow, bail};
 
 use crate::x;
-use crate::{Count, Dance, Data, Link, OptOrder, Opts, Solve, Spec};
+use crate::{Dance, Int, OptOrder, Opts, Solve, Spec, Uint};
 
-pub fn commit<D: DanceC<O: OptsC>>(p: Link, j: Link, dance: &mut D) {
+pub fn commit<D: DanceC<O: OptsC>>(p: Uint, j: Uint, dance: &mut D) {
     if *dance.color(p) == 0 {
         dance.cover(j);
     }
@@ -12,7 +12,7 @@ pub fn commit<D: DanceC<O: OptsC>>(p: Link, j: Link, dance: &mut D) {
     }
 }
 
-pub fn uncommit<D: DanceC<O: OptsC>>(p: Link, j: Link, dance: &mut D) {
+pub fn uncommit<D: DanceC<O: OptsC>>(p: Uint, j: Uint, dance: &mut D) {
     if *dance.color(p) == 0 {
         dance.uncover(j)
     }
@@ -21,7 +21,7 @@ pub fn uncommit<D: DanceC<O: OptsC>>(p: Link, j: Link, dance: &mut D) {
     }
 }
 
-pub fn hide<D: DanceC<O: OptsC>>(p: Link, dance: &mut D) {
+pub fn hide<D: DanceC<O: OptsC>>(p: Uint, dance: &mut D) {
     let mut q = p + 1;
     while q != p {
         let x = *dance.top(q);
@@ -33,7 +33,7 @@ pub fn hide<D: DanceC<O: OptsC>>(p: Link, dance: &mut D) {
             if *dance.color(q) >= 0 {
                 *dance.dlink(u) = d;
                 *dance.ulink(d) = u;
-                *dance.len(x as Link) -= 1;
+                *dance.len(x as Uint) -= 1;
                 *dance.updates() += 1;
             }
             q += 1;
@@ -41,7 +41,7 @@ pub fn hide<D: DanceC<O: OptsC>>(p: Link, dance: &mut D) {
     }
 }
 
-pub fn unhide<D: DanceC<O: OptsC>>(p: Link, dance: &mut D) {
+pub fn unhide<D: DanceC<O: OptsC>>(p: Uint, dance: &mut D) {
     let mut q = p - 1;
     while q != p {
         let x = *dance.top(q);
@@ -53,16 +53,16 @@ pub fn unhide<D: DanceC<O: OptsC>>(p: Link, dance: &mut D) {
             if *dance.color(q) >= 0 {
                 *dance.dlink(u) = q;
                 *dance.ulink(d) = q;
-                *dance.len(x as Link) += 1;
+                *dance.len(x as Uint) += 1;
             }
             q -= 1;
         }
     }
 }
 
-pub fn purify<D: DanceC<O: OptsC>>(p: Link, dance: &mut D) {
+pub fn purify<D: DanceC<O: OptsC>>(p: Uint, dance: &mut D) {
     let c = *dance.color(p);
-    let i = *dance.top(p) as Link;
+    let i = *dance.top(p) as Uint;
     // TODO is this needed?
     // *dance.color(i) = c;
     let mut q = *dance.dlink(i);
@@ -76,9 +76,9 @@ pub fn purify<D: DanceC<O: OptsC>>(p: Link, dance: &mut D) {
     }
 }
 
-pub fn unpurify<D: DanceC<O: OptsC>>(p: Link, dance: &mut D) {
+pub fn unpurify<D: DanceC<O: OptsC>>(p: Uint, dance: &mut D) {
     let c = *dance.color(p);
-    let i = *dance.top(p) as Link;
+    let i = *dance.top(p) as Uint;
     let mut q = *dance.ulink(i);
     while q != i {
         if *dance.color(q) < 0 {
@@ -92,10 +92,10 @@ pub fn unpurify<D: DanceC<O: OptsC>>(p: Link, dance: &mut D) {
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct ONode {
-    hdr_info: Data,
-    up: Link,
-    down: Link,
-    color: Data,
+    hdr_info: Int,
+    up: Uint,
+    down: Uint,
+    color: Int,
 }
 
 #[derive(Clone, Default, Debug, Eq, PartialEq)]
@@ -105,7 +105,7 @@ pub struct ONodes {
 
 impl ONodes {
     pub fn new(
-        n: Count, np: Count, os: &[Vec<(Count, Data)>], order: OptOrder,
+        n: Uint, np: Uint, os: &[Vec<(Uint, Int)>], order: OptOrder,
     ) -> ONodes {
         // TODO: ensure primary have color 0
         let mut nodes =
@@ -144,19 +144,19 @@ impl ONodes {
                 if i < spec.primary.len() && color != ' ' {
                     bail!("Color on primary item");
                 }
-                let color = if color == ' ' { 0 } else { color as Data };
-                is.push((i as Count, color));
+                let color = if color == ' ' { 0 } else { color as Int };
+                is.push((i as Uint, color));
             }
             os.push(is);
         }
-        let n = (spec.primary.len() + spec.secondary.len()) as Count;
+        let n = (spec.primary.len() + spec.secondary.len()) as Uint;
         let opts =
-            ONodes::new(n, spec.primary.len() as Count, &os, OptOrder::Seq);
+            ONodes::new(n, spec.primary.len() as Uint, &os, OptOrder::Seq);
         Ok(opts)
     }
 
     #[inline]
-    fn get_node(&mut self, i: Link) -> &mut ONode {
+    fn get_node(&mut self, i: Uint) -> &mut ONode {
         if cfg!(feature = "unsafe-fast-index") {
             unsafe { self.nodes.get_unchecked_mut(i as usize) }
         } else {
@@ -166,7 +166,7 @@ impl ONodes {
 }
 
 pub fn make_problem(
-    np: Count, ns: Count, os: &[Vec<(Count, Data)>], order: OptOrder,
+    np: Uint, ns: Uint, os: &[Vec<(Uint, Int)>], order: OptOrder,
 ) -> Problem {
     Problem::new(x::INodes::new(np, ns), ONodes::new(np + ns, np, os, order))
 }
@@ -191,46 +191,46 @@ impl Problem {
 }
 
 impl Opts for ONodes {
-    type Spec = (Count, Data);
+    type Spec = (Uint, Int);
 
     #[inline]
-    fn len(&mut self, i: Link) -> &mut Data {
+    fn len(&mut self, i: Uint) -> &mut Int {
         &mut self.get_node(i).hdr_info
     }
 
     #[inline]
-    fn top(&mut self, i: Link) -> &mut Data {
+    fn top(&mut self, i: Uint) -> &mut Int {
         &mut self.get_node(i).hdr_info
     }
 
     #[inline]
-    fn ulink(&mut self, i: Link) -> &mut Link {
+    fn ulink(&mut self, i: Uint) -> &mut Uint {
         &mut self.get_node(i).up
     }
 
     #[inline]
-    fn dlink(&mut self, i: Link) -> &mut Link {
+    fn dlink(&mut self, i: Uint) -> &mut Uint {
         &mut self.get_node(i).down
     }
 
-    fn set_data(&mut self, pk: Link, s: (Count, Data)) -> Link {
+    fn set_data(&mut self, pk: Uint, s: (Uint, Int)) -> Uint {
         self.nodes.push(Default::default());
         *self.color(pk) = s.1;
         s.0
     }
 
-    fn get_spec_item(s: Self::Spec) -> Link {
+    fn get_spec_item(s: Self::Spec) -> Uint {
         s.0
     }
 }
 
 pub trait OptsC: Opts {
-    fn color(&mut self, i: Link) -> &mut Data;
+    fn color(&mut self, i: Uint) -> &mut Int;
 }
 
 impl OptsC for ONodes {
     #[inline]
-    fn color(&mut self, i: Link) -> &mut Data {
+    fn color(&mut self, i: Uint) -> &mut Int {
         &mut self.get_node(i).color
     }
 }
@@ -255,83 +255,83 @@ impl Dance for Problem {
     }
 
     #[inline]
-    fn cover(&mut self, i: Link) {
+    fn cover(&mut self, i: Uint) {
         x::cover(i, self);
     }
 
     #[inline]
-    fn commit(&mut self, p: Link, j: Link) {
+    fn commit(&mut self, p: Uint, j: Uint) {
         commit(p, j, self);
     }
 
     #[inline]
-    fn uncover(&mut self, i: Link) {
+    fn uncover(&mut self, i: Uint) {
         x::uncover(i, self);
     }
 
     #[inline]
-    fn uncommit(&mut self, p: Link, j: Link) {
+    fn uncommit(&mut self, p: Uint, j: Uint) {
         uncommit(p, j, self);
     }
 
     #[inline]
-    fn hide(&mut self, p: Link) {
+    fn hide(&mut self, p: Uint) {
         hide(p, self);
     }
 
     #[inline]
-    fn unhide(&mut self, p: Link) {
+    fn unhide(&mut self, p: Uint) {
         unhide(p, self);
     }
 
     #[inline]
-    fn branch_degree(&mut self, i: Link) -> Data {
+    fn branch_degree(&mut self, i: Uint) -> Int {
         x::branch_degree(i, self)
     }
 }
 
 pub trait DanceC: Dance<O: OptsC> {
-    fn purify(&mut self, p: Link);
-    fn unpurify(&mut self, p: Link);
+    fn purify(&mut self, p: Uint);
+    fn unpurify(&mut self, p: Uint);
 
     #[inline]
-    fn color(&mut self, i: Link) -> &mut Data {
+    fn color(&mut self, i: Uint) -> &mut Int {
         self.opts().color(i)
     }
 }
 
 impl DanceC for Problem {
     #[inline]
-    fn purify(&mut self, p: Link) {
+    fn purify(&mut self, p: Uint) {
         purify(p, self);
     }
 
     #[inline]
-    fn unpurify(&mut self, p: Link) {
+    fn unpurify(&mut self, p: Uint) {
         unpurify(p, self);
     }
 }
 
 impl Solve for Problem {
-    fn enter_level(&mut self, _: Link, _: Count, _: Link) {}
+    fn enter_level(&mut self, _: Uint, _: Uint, _: Uint) {}
 
     #[inline]
-    fn prepare_to_branch(&mut self, i: Link, l: Count, xl: Link) {
+    fn prepare_to_branch(&mut self, i: Uint, l: Uint, xl: Uint) {
         x::prepare_to_branch(self, i, l, xl);
     }
 
     #[inline]
-    fn try_item(&mut self, i: Link, _: Count, xl: Link) -> bool {
+    fn try_item(&mut self, i: Uint, _: Uint, xl: Uint) -> bool {
         x::try_item(self, i, xl)
     }
 
     #[inline]
-    fn try_again(&mut self, i: Link, l: Count, xl: &mut Link) -> bool {
+    fn try_again(&mut self, i: Uint, l: Uint, xl: &mut Uint) -> bool {
         x::try_again(self, i, l, xl)
     }
 
     #[inline]
-    fn restore_item(&mut self, i: Link, _: Count, _: Link) {
+    fn restore_item(&mut self, i: Uint, _: Uint, _: Uint) {
         x::restore_item(self, i);
     }
 }
@@ -342,7 +342,7 @@ mod tests {
 
     #[test]
     fn test_opt_init() {
-        let os: Vec<Vec<(Count, Data)>> = vec![
+        let os: Vec<Vec<(Uint, Int)>> = vec![
             vec![(0, 0), (1, 0), (3, 0), (4, 65)],
             vec![(0, 0), (2, 0), (3, 65), (4, 0)],
             vec![(0, 0), (3, 66)],
@@ -374,7 +374,7 @@ r y:B
         use crate::Solver;
         use crate::choose::*;
         let items = x::INodes::new(3, 2);
-        let os: Vec<Vec<(Count, Data)>> = vec![
+        let os: Vec<Vec<(Uint, Int)>> = vec![
             vec![(0, 0), (1, 0), (3, 0), (4, 65)],
             vec![(0, 0), (2, 0), (3, 65), (4, 0)],
             vec![(0, 0), (3, 66)],
@@ -386,7 +386,7 @@ r y:B
         let opts_init = opts.clone();
         let mut problem = Problem::new(items, opts);
         let mut solver = Solver::new(&mut problem);
-        let mut solutions: Vec<Vec<Data>> = Vec::new();
+        let mut solutions: Vec<Vec<Int>> = Vec::new();
         let mut expected = vec![vec![1, 3]];
         let mut i = 0;
         let mut chooser = mrv_chooser(prefer_any(), rnd_tiebreak(12345678));

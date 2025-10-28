@@ -3,44 +3,44 @@ use anyhow::{Result, bail};
 use crate::c;
 use crate::c::DanceC;
 use crate::x;
-use crate::{Count, Dance, Data, Items, Link, Opts};
+use crate::{Dance, Int, Items, Opts, Uint};
 
 type OSpec<R> = <<R as Dance>::O as Opts>::Spec;
 
 pub trait Reduce: Dance {
-    fn get_color(&mut self, n: Link) -> Data;
+    fn get_color(&mut self, n: Uint) -> Int;
     fn get_opt_data(
-        &self, i: Count, c: Data,
+        &self, i: Uint, c: Int,
     ) -> <<Self as Dance>::O as Opts>::Spec;
 }
 
 impl Reduce for x::Problem {
-    fn get_color(&mut self, _n: Link) -> Data {
+    fn get_color(&mut self, _n: Uint) -> Int {
         0
     }
 
-    fn get_opt_data(&self, i: Count, _c: Data) -> Count {
+    fn get_opt_data(&self, i: Uint, _c: Int) -> Uint {
         i
     }
 }
 
 impl Reduce for c::Problem {
-    fn get_color(&mut self, n: Link) -> Data {
+    fn get_color(&mut self, n: Uint) -> Int {
         *self.color(n)
     }
 
-    fn get_opt_data(&self, i: Count, c: Data) -> (Count, Data) {
+    fn get_opt_data(&self, i: Uint, c: Int) -> (Uint, Int) {
         (i, c)
     }
 }
 
 pub struct Preproc<'a, R> {
     problem: &'a mut R,
-    aux: Vec<Data>,
+    aux: Vec<Int>,
     rounds: usize,
     // The first option node after the header nodes
-    opt_start: Link,
-    stack: Data,
+    opt_start: Uint,
+    stack: Int,
     change: bool,
 }
 
@@ -60,7 +60,7 @@ impl<'a, R: Reduce> Preproc<'a, R> {
 
     pub fn reduce(
         &mut self, max_rounds: usize,
-    ) -> Result<(Count, Count, Vec<Vec<OSpec<R>>>, Vec<Count>)> {
+    ) -> Result<(Uint, Uint, Vec<Vec<OSpec<R>>>, Vec<Uint>)> {
         for p_itm in 1..=self.problem.items().primary() {
             if *self.problem.len(p_itm) == 0 {
                 bail!("Primary item {} is not in any option", p_itm);
@@ -80,19 +80,19 @@ impl<'a, R: Reduce> Preproc<'a, R> {
             }
         }
         let is = self.get_items();
-        let (np, ns) = (is.0.len() as Count, is.1.len() as Count);
+        let (np, ns) = (is.0.len() as Uint, is.1.len() as Uint);
         let os = self.get_options();
         Ok((np, ns, os.1, os.0))
     }
 
-    fn get_items(&mut self) -> (Vec<Count>, Vec<Count>) {
+    fn get_items(&mut self) -> (Vec<Uint>, Vec<Uint>) {
         let mut ps = Vec::new();
         let mut ss = Vec::new();
         for c in 1..=self.problem.items().count() {
             if *self.problem.len(c) == 0 {
                 continue;
             }
-            if self.is_primary(c as Data) {
+            if self.is_primary(c as Int) {
                 ps.push(c - 1);
             } else {
                 ss.push(c - 1);
@@ -101,7 +101,7 @@ impl<'a, R: Reduce> Preproc<'a, R> {
         (ps, ss)
     }
 
-    fn get_options(&mut self) -> (Vec<Count>, Vec<Vec<OSpec<R>>>) {
+    fn get_options(&mut self) -> (Vec<Uint>, Vec<Vec<OSpec<R>>>) {
         // TODO: Verify that secondary are sequential like primary
         let (ps, ss) = self.get_items();
         let sd = if ss.is_empty() {
@@ -131,7 +131,7 @@ impl<'a, R: Reduce> Preproc<'a, R> {
         (idx, os)
     }
 
-    fn get_option(&mut self, p: Link, sd: Count) -> (Count, Vec<OSpec<R>>) {
+    fn get_option(&mut self, p: Uint, sd: Uint) -> (Uint, Vec<OSpec<R>>) {
         let mut p = p - 1;
         while *self.problem.top(p) > 0 || *self.problem.dlink(p) < p {
             p -= 1;
@@ -141,23 +141,23 @@ impl<'a, R: Reduce> Preproc<'a, R> {
         loop {
             let itm = *self.problem.top(q);
             if itm < 0 {
-                return ((-itm - 1) as Count, o);
+                return ((-itm - 1) as Uint, o);
             }
             if itm > 0 {
-                let itm = if itm > self.problem.items().primary() as Data {
-                    itm - (sd as Data)
+                let itm = if itm > self.problem.items().primary() as Int {
+                    itm - (sd as Int)
                 } else {
                     itm
                 };
                 let clr = self.problem.get_color(q);
-                let data = self.problem.get_opt_data((itm - 1) as Count, clr);
+                let data = self.problem.get_opt_data((itm - 1) as Uint, clr);
                 o.push(data);
             }
             q += 1;
         }
     }
 
-    fn reduce_options(&mut self, itm: Link) -> Result<()> {
+    fn reduce_options(&mut self, itm: Uint) -> Result<()> {
         self.stack = 0;
         self.hide(itm);
         if self.stack != 0 {
@@ -183,7 +183,7 @@ impl<'a, R: Reduce> Preproc<'a, R> {
                             }
                             break;
                         }
-                        self.aux[cc as usize] = r as Data;
+                        self.aux[cc as usize] = r as Int;
                         q += 1;
                     }
                     if !self.hide_entries(r) {
@@ -192,16 +192,16 @@ impl<'a, R: Reduce> Preproc<'a, R> {
                         // Mark the unnecessary option
                         self.change = true;
                         *self.problem.top(r) = self.stack;
-                        self.stack = r as Data;
+                        self.stack = r as Int;
                     }
                 }
                 r = *self.problem.dlink(r);
             }
             self.unhide(itm);
-            r = self.stack as Count;
+            r = self.stack as Uint;
             while r != 0 {
-                let rr = *self.problem.top(r) as Link;
-                *self.problem.top(r) = itm as Data;
+                let rr = *self.problem.top(r) as Uint;
+                *self.problem.top(r) = itm as Int;
                 self.really_delete_option(r);
                 r = rr;
             }
@@ -209,7 +209,7 @@ impl<'a, R: Reduce> Preproc<'a, R> {
         Ok(())
     }
 
-    fn hide_entries(&mut self, r: Link) -> bool {
+    fn hide_entries(&mut self, r: Uint) -> bool {
         let mut q = r + 1;
         loop {
             let cc = *self.problem.top(q);
@@ -221,7 +221,7 @@ impl<'a, R: Reduce> Preproc<'a, R> {
                 return false;
             }
             let x = self.problem.get_color(q);
-            let mut p = *self.problem.dlink(cc as Link);
+            let mut p = *self.problem.dlink(cc as Uint);
             while p >= self.opt_start {
                 if x > 0 && x == self.problem.get_color(p) {
                     p = *self.problem.dlink(p);
@@ -235,10 +235,10 @@ impl<'a, R: Reduce> Preproc<'a, R> {
                         qq = *self.problem.ulink(qq);
                         continue;
                     }
-                    let t = *self.problem.len(cc as Link) - 1;
+                    let t = *self.problem.len(cc as Uint) - 1;
                     if t == 0
                         && self.is_primary(cc)
-                        && self.aux[cc as usize] != r as Data
+                        && self.aux[cc as usize] != r as Int
                     {
                         self.unhide_entries(qq - 1, p);
                         let p = *self.problem.ulink(p);
@@ -246,7 +246,7 @@ impl<'a, R: Reduce> Preproc<'a, R> {
                         self.backup(q - 1, r);
                         return true;
                     }
-                    *self.problem.len(cc as Link) = t;
+                    *self.problem.len(cc as Uint) = t;
                     let uu = *self.problem.ulink(qq);
                     let dd = *self.problem.dlink(qq);
                     *self.problem.dlink(uu) = dd;
@@ -259,7 +259,7 @@ impl<'a, R: Reduce> Preproc<'a, R> {
         }
     }
 
-    fn backup(&mut self, q: Link, r: Link) {
+    fn backup(&mut self, q: Uint, r: Uint) {
         let mut q = q;
         while q != r {
             let cc = *self.problem.top(q);
@@ -268,13 +268,13 @@ impl<'a, R: Reduce> Preproc<'a, R> {
                 continue;
             }
             let x = self.problem.get_color(q);
-            let p = *self.problem.ulink(cc as Link);
+            let p = *self.problem.ulink(cc as Uint);
             self.pass_2(p, x);
             q -= 1;
         }
     }
 
-    fn pass_2(&mut self, p: Link, x: Data) {
+    fn pass_2(&mut self, p: Uint, x: Int) {
         let mut p = p;
         while p >= self.opt_start {
             if x > 0 && x == self.problem.get_color(p) {
@@ -286,7 +286,7 @@ impl<'a, R: Reduce> Preproc<'a, R> {
         }
     }
 
-    fn unhide_entries(&mut self, qq: Link, p: Link) {
+    fn unhide_entries(&mut self, qq: Uint, p: Uint) {
         let mut qq = qq;
         while qq != p {
             let cc = *self.problem.top(qq);
@@ -294,7 +294,7 @@ impl<'a, R: Reduce> Preproc<'a, R> {
                 qq = *self.problem.dlink(qq);
                 continue;
             }
-            *self.problem.len(cc as Link) += 1;
+            *self.problem.len(cc as Uint) += 1;
             let uu = *self.problem.ulink(qq);
             let dd = *self.problem.dlink(qq);
             *self.problem.dlink(uu) = qq;
@@ -304,7 +304,7 @@ impl<'a, R: Reduce> Preproc<'a, R> {
         }
     }
 
-    fn remove_item(&mut self, c: Link) -> Result<()> {
+    fn remove_item(&mut self, c: Uint) -> Result<()> {
         // Remove item c, and maybe some options
         self.unhide(c);
         let mut r = *self.problem.dlink(c);
@@ -337,11 +337,11 @@ impl<'a, R: Reduce> Preproc<'a, R> {
                         q = *self.problem.ulink(q);
                         continue;
                     }
-                    let t = *self.problem.len(cc as Link) - 1;
+                    let t = *self.problem.len(cc as Uint) - 1;
                     if t == 0 && self.is_primary(cc) {
                         bail!("Primary item {} is not in any option", cc);
                     }
-                    *self.problem.len(cc as Link) = t;
+                    *self.problem.len(cc as Uint) = t;
                     let uu = *self.problem.ulink(q);
                     let dd = *self.problem.dlink(q);
                     *self.problem.dlink(uu) = dd;
@@ -358,7 +358,7 @@ impl<'a, R: Reduce> Preproc<'a, R> {
         Ok(())
     }
 
-    fn really_delete_option(&mut self, r: Link) {
+    fn really_delete_option(&mut self, r: Uint) {
         let mut p = r + 1;
         loop {
             let cc = *self.problem.top(p);
@@ -370,8 +370,8 @@ impl<'a, R: Reduce> Preproc<'a, R> {
             let dd = *self.problem.dlink(p);
             *self.problem.dlink(uu) = dd;
             *self.problem.ulink(dd) = uu;
-            *self.problem.len(cc as Link) -= 1;
-            if *self.problem.len(cc as Link) == 0 {
+            *self.problem.len(cc as Uint) -= 1;
+            if *self.problem.len(cc as Uint) == 0 {
                 // Take note that cc has no options
                 if self.is_primary(cc) {
                     // Terminate with unfeasible item cc
@@ -385,11 +385,11 @@ impl<'a, R: Reduce> Preproc<'a, R> {
         }
     }
 
-    fn is_primary(&mut self, i: Data) -> bool {
-        (i as Count) <= self.problem.items().primary()
+    fn is_primary(&mut self, i: Int) -> bool {
+        (i as Uint) <= self.problem.items().primary()
     }
 
-    fn hide(&mut self, c: Link) {
+    fn hide(&mut self, c: Uint) {
         let mut rr = *self.problem.dlink(c);
         while rr >= self.opt_start {
             if self.problem.get_color(rr) == 0 {
@@ -404,11 +404,11 @@ impl<'a, R: Reduce> Preproc<'a, R> {
                     }
                     *self.problem.dlink(uu) = dd;
                     *self.problem.ulink(dd) = uu;
-                    let t = *self.problem.len(cc as Link) - 1;
-                    *self.problem.len(cc as Link) = t;
+                    let t = *self.problem.len(cc as Uint) - 1;
+                    *self.problem.len(cc as Uint) = t;
                     // TODO: option to skip removing redundant items
                     if t == 0 && self.is_primary(cc) {
-                        self.stack = cc as Data;
+                        self.stack = cc as Int;
                     }
                     nn += 1;
                 }
@@ -417,7 +417,7 @@ impl<'a, R: Reduce> Preproc<'a, R> {
         }
     }
 
-    fn unhide(&mut self, c: Link) {
+    fn unhide(&mut self, c: Uint) {
         let mut rr = *self.problem.dlink(c);
         while rr >= self.opt_start {
             if self.problem.get_color(rr) == 0 {
@@ -430,10 +430,10 @@ impl<'a, R: Reduce> Preproc<'a, R> {
                         nn = uu;
                         continue;
                     }
-                    let t = *self.problem.len(cc as Link);
+                    let t = *self.problem.len(cc as Uint);
                     *self.problem.dlink(uu) = nn;
                     *self.problem.ulink(dd) = nn;
-                    *self.problem.len(cc as Link) = t + 1;
+                    *self.problem.len(cc as Uint) = t + 1;
                     nn += 1;
                 }
             }
@@ -453,7 +453,7 @@ mod tests {
         use crate::c::ONodes;
         use crate::c::Problem;
         let items = INodes::new(3, 2);
-        let os: Vec<Vec<(Count, Data)>> = vec![
+        let os: Vec<Vec<(Uint, Int)>> = vec![
             vec![(0, 0), (1, 0), (3, 48), (4, 48)],
             vec![(0, 0), (2, 0), (3, 49), (4, 49)],
             vec![(3, 48), (4, 49)],
@@ -477,7 +477,7 @@ mod tests {
         use crate::x::ONodes;
         use crate::x::Problem;
         let items = INodes::new(5, 2);
-        let os: Vec<Vec<Count>> = vec![
+        let os: Vec<Vec<Uint>> = vec![
             vec![2, 4, 5],
             vec![0, 3, 6],
             vec![1, 2, 5],

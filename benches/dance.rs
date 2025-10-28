@@ -2,11 +2,11 @@ use criterion::{Criterion, criterion_group, criterion_main};
 
 use dlx::choose::{Choose, mrv_chooser, no_tiebreak, prefer_any};
 use dlx::x::{INodes, ONodes, Problem};
-use dlx::{Count, OptOrder, Solve, Solver};
+use dlx::{OptOrder, Solve, Solver, Uint};
 
 fn bench_dance(c: &mut Criterion) {
     let items = INodes::new(7, 0);
-    let os: Vec<Vec<Count>> = vec![
+    let os: Vec<Vec<Uint>> = vec![
         vec![2, 4],
         vec![0, 3, 6],
         vec![1, 2, 5],

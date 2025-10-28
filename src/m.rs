@@ -1,9 +1,9 @@
 use anyhow::{Result, bail};
 
 use crate::x;
-use crate::{Count, Dance, Data, Items, Link, OptOrder, Solve, Spec};
+use crate::{Dance, Int, Items, OptOrder, Solve, Spec, Uint};
 
-pub fn tweak<D: DanceM<I: ItemsM>>(x: Link, p: Link, dance: &mut D) {
+pub fn tweak<D: DanceM<I: ItemsM>>(x: Uint, p: Uint, dance: &mut D) {
     if *dance.bound(p) != 0 {
         dance.hide(x);
     }
@@ -13,12 +13,12 @@ pub fn tweak<D: DanceM<I: ItemsM>>(x: Link, p: Link, dance: &mut D) {
     *dance.len(p) -= 1;
 }
 
-pub fn untweak<D: DanceM<I: ItemsM>>(l: Count, unblock: bool, dance: &mut D) {
+pub fn untweak<D: DanceM<I: ItemsM>>(l: Uint, unblock: bool, dance: &mut D) {
     let ftl = dance.ft()[l as usize];
     let p = if ftl <= dance.items().count() {
         ftl
     } else {
-        *dance.top(ftl) as Link
+        *dance.top(ftl) as Uint
     };
     let mut x = ftl;
     let mut y = p;
@@ -41,18 +41,16 @@ pub fn untweak<D: DanceM<I: ItemsM>>(l: Count, unblock: bool, dance: &mut D) {
     }
 }
 
-pub fn branch_degree<D: DanceM<I: ItemsM>>(i: Link, dance: &mut D) -> Data {
+pub fn branch_degree<D: DanceM<I: ItemsM>>(i: Uint, dance: &mut D) -> Int {
     (*dance.len(i) + 1)
         .saturating_sub((*dance.bound(i)).saturating_sub(dance.slack(i)))
 }
 
-pub fn enter_level<S: SolveM>(solve: &mut S, _: Link, _: Count, _: Link) {
+pub fn enter_level<S: SolveM>(solve: &mut S, _: Uint, _: Uint, _: Uint) {
     solve.ft().push(0);
 }
 
-pub fn prepare_to_branch<S: SolveM>(
-    solve: &mut S, i: Link, l: Count, xl: Link,
-) {
+pub fn prepare_to_branch<S: SolveM>(solve: &mut S, i: Uint, l: Uint, xl: Uint) {
     *solve.bound(i) -= 1;
     if *solve.bound(i) == 0 {
         solve.cover(i);
@@ -64,7 +62,7 @@ pub fn prepare_to_branch<S: SolveM>(
     }
 }
 
-pub fn try_item<S: SolveM>(solve: &mut S, i: Link, _: Count, xl: Link) -> bool {
+pub fn try_item<S: SolveM>(solve: &mut S, i: Uint, _: Uint, xl: Uint) -> bool {
     if solve.slack(i) == 0 && *solve.bound(i) == 0 {
         if xl == i {
             return false;
@@ -89,14 +87,14 @@ pub fn try_item<S: SolveM>(solve: &mut S, i: Link, _: Count, xl: Link) -> bool {
             let j = *solve.top(p);
             if j <= 0 {
                 p = *solve.ulink(p);
-            } else if j as Count <= solve.items().primary() {
+            } else if j as Uint <= solve.items().primary() {
                 p += 1;
-                *solve.bound(j as Link) -= 1;
-                if *solve.bound(j as Link) == 0 {
-                    solve.cover(j as Link);
+                *solve.bound(j as Uint) -= 1;
+                if *solve.bound(j as Uint) == 0 {
+                    solve.cover(j as Uint);
                 }
             } else {
-                solve.commit(p, j as Link);
+                solve.commit(p, j as Uint);
                 p += 1;
             }
         }
@@ -105,7 +103,7 @@ pub fn try_item<S: SolveM>(solve: &mut S, i: Link, _: Count, xl: Link) -> bool {
 }
 
 pub fn try_again<S: SolveM>(
-    solve: &mut S, i: Link, l: Count, xl: &mut Link,
+    solve: &mut S, i: Uint, l: Uint, xl: &mut Uint,
 ) -> bool {
     let mut i = i;
     let again = if *xl > solve.items().count() {
@@ -114,14 +112,14 @@ pub fn try_again<S: SolveM>(
             let j = *solve.top(p);
             if j <= 0 {
                 p = *solve.dlink(p);
-            } else if (j as Link) <= solve.items().primary() {
+            } else if (j as Uint) <= solve.items().primary() {
                 p -= 1;
-                *solve.bound(j as Link) += 1;
-                if *solve.bound(j as Link) == 1 {
-                    solve.uncover(j as Link);
+                *solve.bound(j as Uint) += 1;
+                if *solve.bound(j as Uint) == 1 {
+                    solve.uncover(j as Uint);
                 }
             } else {
-                solve.uncommit(p, j as Link);
+                solve.uncommit(p, j as Uint);
                 p -= 1;
             }
         }
@@ -141,7 +139,7 @@ pub fn try_again<S: SolveM>(
     again
 }
 
-pub fn restore_item<S: SolveM>(solve: &mut S, i: Link, l: Count, _: Link) {
+pub fn restore_item<S: SolveM>(solve: &mut S, i: Uint, l: Uint, _: Uint) {
     if *solve.bound(i) == 0 && solve.slack(i) == 0 {
         solve.uncover(i);
     } else {
@@ -153,28 +151,26 @@ pub fn restore_item<S: SolveM>(solve: &mut S, i: Link, l: Count, _: Link) {
 
 #[derive(Copy, Clone, Debug, Default, Eq, PartialEq)]
 pub struct INode {
-    left: Link,
-    right: Link,
-    slack: Data,
-    bound: Data,
+    left: Uint,
+    right: Uint,
+    slack: Int,
+    bound: Int,
 }
 
 #[derive(Clone, Default, Debug, Eq, PartialEq)]
 pub struct INodes {
     nodes: Vec<INode>,
-    primary: Count,
-    len: Count,
+    primary: Uint,
+    len: Uint,
 }
 
 impl INodes {
-    pub fn new(
-        ps: impl IntoIterator<Item = (Data, Data)>, ns: Count,
-    ) -> INodes {
+    pub fn new(ps: impl IntoIterator<Item = (Int, Int)>, ns: Uint) -> INodes {
         let mut nodes = vec![Default::default()];
         for (u, v) in ps.into_iter() {
             nodes.push(INode { bound: v, slack: v - u, ..Default::default() });
         }
-        let primary = (nodes.len() - 1) as Count;
+        let primary = (nodes.len() - 1) as Uint;
         for _ in 0..=ns {
             nodes.push(Default::default());
         }
@@ -208,8 +204,8 @@ impl INodes {
                 (item.as_str(), "1", "1")
             };
             names.push(name.into());
-            let u: Data = u.parse().or_else(|_| bail!("non-numeric bound"))?;
-            let v: Data = v.parse().or_else(|_| bail!("non-numeric bound"))?;
+            let u: Int = u.parse().or_else(|_| bail!("non-numeric bound"))?;
+            let v: Int = v.parse().or_else(|_| bail!("non-numeric bound"))?;
             ps.push((u, v));
         }
         for item in &spec.secondary {
@@ -225,12 +221,12 @@ impl INodes {
                 bail!("Invalid item name");
             }
         }
-        let ns = spec.secondary.len() as Count;
+        let ns = spec.secondary.len() as Uint;
         Ok((INodes::new(ps, ns), names))
     }
 
     #[inline]
-    fn get_node(&mut self, i: Link) -> &mut INode {
+    fn get_node(&mut self, i: Uint) -> &mut INode {
         if cfg!(feature = "unsafe-fast-index") {
             unsafe { self.nodes.get_unchecked_mut(i as usize) }
         } else {
@@ -243,7 +239,7 @@ impl INodes {
 pub struct Problem {
     items: INodes,
     opts: x::ONodes,
-    ft: Vec<Link>,
+    ft: Vec<Uint>,
     updates: isize,
 }
 
@@ -261,39 +257,39 @@ impl Problem {
 
 impl Items for INodes {
     #[inline]
-    fn llink(&mut self, i: Link) -> &mut Link {
+    fn llink(&mut self, i: Uint) -> &mut Uint {
         &mut self.get_node(i).left
     }
 
     #[inline]
-    fn rlink(&mut self, i: Link) -> &mut Link {
+    fn rlink(&mut self, i: Uint) -> &mut Uint {
         &mut self.get_node(i).right
     }
 
     #[inline]
-    fn primary(&self) -> Count {
+    fn primary(&self) -> Uint {
         self.primary
     }
 
     #[inline]
-    fn count(&self) -> Count {
+    fn count(&self) -> Uint {
         self.len
     }
 }
 
 pub trait ItemsM: Items {
-    fn bound(&mut self, i: Link) -> &mut Data;
-    fn slack(&mut self, i: Link) -> Data;
+    fn bound(&mut self, i: Uint) -> &mut Int;
+    fn slack(&mut self, i: Uint) -> Int;
 }
 
 impl ItemsM for INodes {
     #[inline]
-    fn bound(&mut self, i: Link) -> &mut Data {
+    fn bound(&mut self, i: Uint) -> &mut Int {
         &mut self.get_node(i).bound
     }
 
     #[inline]
-    fn slack(&mut self, i: Link) -> Data {
+    fn slack(&mut self, i: Uint) -> Int {
         self.get_node(i).slack
     }
 }
@@ -318,97 +314,97 @@ impl Dance for Problem {
     }
 
     #[inline]
-    fn cover(&mut self, i: Link) {
+    fn cover(&mut self, i: Uint) {
         x::cover(i, self);
     }
 
     #[inline]
-    fn commit(&mut self, p: Link, j: Link) {
+    fn commit(&mut self, p: Uint, j: Uint) {
         x::commit(p, j, self);
     }
 
     #[inline]
-    fn uncover(&mut self, i: Link) {
+    fn uncover(&mut self, i: Uint) {
         x::uncover(i, self);
     }
 
     #[inline]
-    fn uncommit(&mut self, p: Link, j: Link) {
+    fn uncommit(&mut self, p: Uint, j: Uint) {
         x::uncommit(p, j, self);
     }
 
     #[inline]
-    fn hide(&mut self, p: Link) {
+    fn hide(&mut self, p: Uint) {
         x::hide(p, self);
     }
 
     #[inline]
-    fn unhide(&mut self, p: Link) {
+    fn unhide(&mut self, p: Uint) {
         x::unhide(p, self);
     }
 
     #[inline]
-    fn branch_degree(&mut self, i: Link) -> Data {
+    fn branch_degree(&mut self, i: Uint) -> Int {
         branch_degree(i, self)
     }
 }
 
 pub trait DanceM: Dance<I: ItemsM> {
-    fn tweak(&mut self, x: Link, p: Link);
-    fn untweak(&mut self, l: Count, unblock: bool);
-    fn ft(&mut self) -> &mut Vec<Link>;
+    fn tweak(&mut self, x: Uint, p: Uint);
+    fn untweak(&mut self, l: Uint, unblock: bool);
+    fn ft(&mut self) -> &mut Vec<Uint>;
 
     #[inline]
-    fn bound(&mut self, i: Link) -> &mut Data {
+    fn bound(&mut self, i: Uint) -> &mut Int {
         self.items().bound(i)
     }
 
     #[inline]
-    fn slack(&mut self, i: Link) -> Data {
+    fn slack(&mut self, i: Uint) -> Int {
         self.items().slack(i)
     }
 }
 
 impl DanceM for Problem {
     #[inline]
-    fn tweak(&mut self, x: Link, p: Link) {
+    fn tweak(&mut self, x: Uint, p: Uint) {
         tweak(x, p, self);
     }
 
     #[inline]
-    fn untweak(&mut self, l: Count, unblock: bool) {
+    fn untweak(&mut self, l: Uint, unblock: bool) {
         untweak(l, unblock, self);
     }
 
     #[inline]
-    fn ft(&mut self) -> &mut Vec<Link> {
+    fn ft(&mut self) -> &mut Vec<Uint> {
         &mut self.ft
     }
 }
 
 impl Solve for Problem {
     #[inline]
-    fn enter_level(&mut self, i: Link, l: Count, xl: Link) {
+    fn enter_level(&mut self, i: Uint, l: Uint, xl: Uint) {
         enter_level(self, i, l, xl);
     }
 
     #[inline]
-    fn prepare_to_branch(&mut self, i: Link, l: Count, xl: Link) {
+    fn prepare_to_branch(&mut self, i: Uint, l: Uint, xl: Uint) {
         prepare_to_branch(self, i, l, xl);
     }
 
     #[inline]
-    fn try_item(&mut self, i: Link, l: Count, xl: Link) -> bool {
+    fn try_item(&mut self, i: Uint, l: Uint, xl: Uint) -> bool {
         try_item(self, i, l, xl)
     }
 
     #[inline]
-    fn try_again(&mut self, i: Link, l: Count, xl: &mut Link) -> bool {
+    fn try_again(&mut self, i: Uint, l: Uint, xl: &mut Uint) -> bool {
         try_again(self, i, l, xl)
     }
 
     #[inline]
-    fn restore_item(&mut self, i: Link, l: Count, xl: Link) {
+    fn restore_item(&mut self, i: Uint, l: Uint, xl: Uint) {
         restore_item(self, i, l, xl);
     }
 }
@@ -448,7 +444,7 @@ C Y
             .chain(repeat_n((0, 2), 12));
         let items = INodes::new(ps, 0);
 
-        let mut os: Vec<Vec<Count>> = Vec::new();
+        let mut os: Vec<Vec<Uint>> = Vec::new();
         for i in 0..2 {
             for j in 0..2 {
                 os.push(vec![i, 8 + j, 12 + i + 1 - j, 15 + i + j]);
@@ -464,7 +460,7 @@ C Y
         let opts_init = opts.clone();
         let mut problem = Problem::new(items, opts);
         let mut solver = Solver::new(&mut problem);
-        let mut solutions: Vec<Vec<Data>> = Vec::new();
+        let mut solutions: Vec<Vec<Int>> = Vec::new();
         let mut expected = vec![
             vec![0, 1, 5, 6, 8, 11, 14, 15],
             vec![0, 2, 5, 7, 9, 11, 12, 14],

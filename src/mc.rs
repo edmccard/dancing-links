@@ -1,13 +1,13 @@
 use anyhow::Result;
 
-use crate::{Count, Dance, Data, Link, Solve, Spec};
+use crate::{Dance, Int, Solve, Spec, Uint};
 use crate::{c, m, x};
 
 #[derive(Debug, Eq, PartialEq)]
 pub struct Problem {
     items: m::INodes,
     opts: c::ONodes,
-    ft: Vec<Link>,
+    ft: Vec<Uint>,
     updates: isize,
 }
 
@@ -43,93 +43,93 @@ impl Dance for Problem {
     }
 
     #[inline]
-    fn cover(&mut self, i: Link) {
+    fn cover(&mut self, i: Uint) {
         x::cover(i, self);
     }
 
     #[inline]
-    fn commit(&mut self, p: Link, j: Link) {
+    fn commit(&mut self, p: Uint, j: Uint) {
         c::commit(p, j, self);
     }
 
     #[inline]
-    fn uncover(&mut self, i: Link) {
+    fn uncover(&mut self, i: Uint) {
         x::uncover(i, self);
     }
 
     #[inline]
-    fn uncommit(&mut self, p: Link, j: Link) {
+    fn uncommit(&mut self, p: Uint, j: Uint) {
         c::uncommit(p, j, self);
     }
 
     #[inline]
-    fn hide(&mut self, p: Link) {
+    fn hide(&mut self, p: Uint) {
         c::hide(p, self);
     }
 
     #[inline]
-    fn unhide(&mut self, p: Link) {
+    fn unhide(&mut self, p: Uint) {
         c::unhide(p, self);
     }
 
     #[inline]
-    fn branch_degree(&mut self, i: Link) -> Data {
+    fn branch_degree(&mut self, i: Uint) -> Int {
         m::branch_degree(i, self)
     }
 }
 
 impl c::DanceC for Problem {
     #[inline]
-    fn purify(&mut self, p: Link) {
+    fn purify(&mut self, p: Uint) {
         c::purify(p, self);
     }
 
     #[inline]
-    fn unpurify(&mut self, p: Link) {
+    fn unpurify(&mut self, p: Uint) {
         c::unpurify(p, self);
     }
 }
 
 impl m::DanceM for Problem {
     #[inline]
-    fn tweak(&mut self, x: Link, p: Link) {
+    fn tweak(&mut self, x: Uint, p: Uint) {
         m::tweak(x, p, self);
     }
 
     #[inline]
-    fn untweak(&mut self, l: Count, unblock: bool) {
+    fn untweak(&mut self, l: Uint, unblock: bool) {
         m::untweak(l, unblock, self);
     }
 
     #[inline]
-    fn ft(&mut self) -> &mut Vec<Link> {
+    fn ft(&mut self) -> &mut Vec<Uint> {
         &mut self.ft
     }
 }
 
 impl Solve for Problem {
     #[inline]
-    fn enter_level(&mut self, i: Link, l: Count, xl: Link) {
+    fn enter_level(&mut self, i: Uint, l: Uint, xl: Uint) {
         m::enter_level(self, i, l, xl);
     }
 
     #[inline]
-    fn prepare_to_branch(&mut self, i: Link, l: Count, xl: Link) {
+    fn prepare_to_branch(&mut self, i: Uint, l: Uint, xl: Uint) {
         m::prepare_to_branch(self, i, l, xl);
     }
 
     #[inline]
-    fn try_item(&mut self, i: Link, l: Count, xl: Link) -> bool {
+    fn try_item(&mut self, i: Uint, l: Uint, xl: Uint) -> bool {
         m::try_item(self, i, l, xl)
     }
 
     #[inline]
-    fn try_again(&mut self, i: Link, l: Count, xl: &mut Link) -> bool {
+    fn try_again(&mut self, i: Uint, l: Uint, xl: &mut Uint) -> bool {
         m::try_again(self, i, l, xl)
     }
 
     #[inline]
-    fn restore_item(&mut self, i: Link, l: Count, xl: Link) {
+    fn restore_item(&mut self, i: Uint, l: Uint, xl: Uint) {
         m::restore_item(self, i, l, xl);
     }
 }
@@ -158,7 +158,7 @@ mod tests {
         let opts_init = opts.clone();
         let mut problem = Problem::new(items, opts);
         let mut solver = Solver::new(&mut problem);
-        let mut solutions: Vec<Vec<Data>> = Vec::new();
+        let mut solutions: Vec<Vec<Int>> = Vec::new();
         let mut expected = vec![vec![1, 3, 4]];
         let mut i = 0;
         let mut chooser = mrv_chooser(prefer_any(), no_tiebreak());

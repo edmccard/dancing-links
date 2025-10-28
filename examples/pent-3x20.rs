@@ -6,7 +6,7 @@ use termcolor::{ColorChoice, StandardStream};
 
 use dlx::choose::*;
 use dlx::x::make_problem;
-use dlx::{Data, OptOrder, Solver};
+use dlx::{Int, OptOrder, Solver};
 
 fn main() {
     let ps = pentominoes();
@@ -19,19 +19,20 @@ fn main() {
     while solver.next_solution(&mut chooser) {
         let grid = fill_grid(&bx, solver.fmt_solution(), &os);
         print_grid(&grid, "OPQRSTUVWXYZ");
-        println!("");
+        println!();
     }
 }
 
-fn fill_grid(bx: &Shape, sol: &[Data], os: &[Vec<Count>]) -> Vec<Vec<usize>> {
+fn fill_grid(bx: &Shape, sol: &[Int], os: &[Vec<Uint>]) -> Vec<Vec<usize>> {
     let mut grid =
         vec![vec![0; (bx.xmax + 1) as usize]; (bx.ymax + 1) as usize];
     for &opt in sol {
         let o = &os[opt as usize];
-        for &itm in o[..o.len() - 1].iter() {
+        let pidx = o.iter().position(|&i| i as usize >= bx.size()).unwrap();
+        let p = (o[pidx] as usize) - bx.size() + 1;
+        for &itm in o[..pidx].iter() {
             let (x, y) = bx.cell_at(itm);
-            let p = (o[o.len() - 1] as usize) - bx.size();
-            grid[y][x] = p + 1;
+            grid[y][x] = p;
         }
     }
     grid
@@ -62,8 +63,7 @@ fn print_grid(grid: &[Vec<usize>], names: &str) {
             }
             stdout
                 .set_color(
-                    ColorSpec::new()
-                        .set_fg(Some(Color::Ansi256((p - 1) as u8))),
+                    ColorSpec::new().set_fg(Some(Color::Ansi256(p as u8))),
                 )
                 .unwrap();
             write!(&mut stdout, "█").unwrap();
