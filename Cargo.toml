@@ -1,28 +1,9 @@
-[package]
-name = "dlx"
-version = "0.7.0"
-edition = "2024"
+[workspace]
+members = ["dlx"]
+resolver = "3"
+
+[workspace.package]
 authors = ["Ed McCardell <edmccard@hotmail.com>"]
-description = """
-An implementation of Knuth's 'Dancing Links' algorithms from TAoXP Section 7.2.2.1.
-"""
+edition = "2024"
 repository = "https://github.com/edmccard/dancing-links"
-keywords = ["exact-cover", "dancing-links"]
-categories = ["algorithms"]
-license = "MIT/Apache-2.0"
-
-[features]
-"unsafe-fast-index" = []
-"32-bit" = []
-
-[dependencies]
-anyhow = "1.0"
-num-traits = "0.2"
-
-[dev-dependencies]
-criterion = { version = "0.5", features = ["html_reports"] }
-termcolor = "1.4.1"
-
-[[bench]]
-name = "dance"
-harness = false
+license = "MIT OR Apache-2.0"

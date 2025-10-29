@@ -1,0 +1,29 @@
+[package]
+name = "dlx"
+version = "0.7.0"
+description = """
+An implementation of Knuth's 'Dancing Links' algorithms from TAoCP Section 7.2.2.1.
+"""
+keywords = ["exact-cover", "dancing-links"]
+categories = ["algorithms"]
+
+edition.workspace = true
+authors.workspace = true
+repository.workspace = true
+license.workspace = true
+
+[features]
+"unsafe-fast-index" = []
+"32-bit" = []
+
+[dependencies]
+anyhow = "1.0"
+num-traits = "0.2"
+
+[dev-dependencies]
+criterion = { version = "0.5", features = ["html_reports"] }
+termcolor = "1.4.1"
+
+[[bench]]
+name = "dance"
+harness = false
