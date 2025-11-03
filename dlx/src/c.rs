@@ -1,7 +1,7 @@
 use anyhow::{Result, anyhow, bail};
 
 use crate::x;
-use crate::{Dance, Int, OptOrder, Opts, Solve, Spec, Uint};
+use crate::{Dance, Int, OptData, OptOrder, Opts, Solve, Spec, Uint};
 
 pub fn commit<D: DanceC<O: OptsC>>(p: Uint, j: Uint, dance: &mut D) {
     if *dance.color(p) == 0 {
@@ -190,8 +190,17 @@ impl Problem {
     }
 }
 
+impl OptData for (Uint, Int) {
+    fn new_item(i: Uint) -> Self {
+        (i, 0)
+    }
+    fn get_item(&self) -> Uint {
+        self.0
+    }
+}
+
 impl Opts for ONodes {
-    type Spec = (Uint, Int);
+    type Data = (Uint, Int);
 
     #[inline]
     fn len(&mut self, i: Uint) -> &mut Int {
@@ -219,7 +228,7 @@ impl Opts for ONodes {
         s.0
     }
 
-    fn get_spec_item(s: Self::Spec) -> Uint {
+    fn get_data_item(s: Self::Data) -> Uint {
         s.0
     }
 }

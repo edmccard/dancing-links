@@ -1,6 +1,6 @@
 use anyhow::{Result, anyhow, bail};
 
-use crate::{Dance, Int, Items, OptOrder, Opts, Solve, Spec, Uint};
+use crate::{Dance, Int, Items, OptData, OptOrder, Opts, Solve, Spec, Uint};
 
 pub fn cover<D: Dance>(i: Uint, dance: &mut D) {
     // TODO: increment updates
@@ -135,6 +135,7 @@ pub struct INodes {
 }
 
 impl INodes {
+    #[allow(clippy::unnecessary_cast)]
     pub fn new(np: Uint, ns: Uint) -> INodes {
         assert!((np as u64) < Int::MAX as u64);
         assert!((ns as u64) < Int::MAX as u64);
@@ -279,8 +280,17 @@ impl Items for INodes {
     }
 }
 
+impl OptData for Uint {
+    fn new_item(i: Uint) -> Self {
+        i
+    }
+    fn get_item(&self) -> Uint {
+        *self
+    }
+}
+
 impl Opts for ONodes {
-    type Spec = Uint;
+    type Data = Uint;
 
     #[inline]
     fn len(&mut self, i: Uint) -> &mut Int {
@@ -307,7 +317,7 @@ impl Opts for ONodes {
         s
     }
 
-    fn get_spec_item(s: Self::Spec) -> Uint {
+    fn get_data_item(s: Self::Data) -> Uint {
         s
     }
 }

@@ -5,13 +5,13 @@ use crate::c::DanceC;
 use crate::x;
 use crate::{Dance, Int, Items, Opts, Uint};
 
-type OSpec<R> = <<R as Dance>::O as Opts>::Spec;
+type OData<R> = <<R as Dance>::O as Opts>::Data;
 
 pub trait Reduce: Dance {
     fn get_color(&mut self, n: Uint) -> Int;
     fn get_opt_data(
         &self, i: Uint, c: Int,
-    ) -> <<Self as Dance>::O as Opts>::Spec;
+    ) -> <<Self as Dance>::O as Opts>::Data;
 }
 
 impl Reduce for x::Problem {
@@ -60,7 +60,7 @@ impl<'a, R: Reduce> Preproc<'a, R> {
 
     pub fn reduce(
         &mut self, max_rounds: usize,
-    ) -> Result<(Uint, Uint, Vec<Vec<OSpec<R>>>, Vec<Uint>)> {
+    ) -> Result<(Uint, Uint, Vec<Vec<OData<R>>>, Vec<Uint>)> {
         for p_itm in 1..=self.problem.items().primary() {
             if *self.problem.len(p_itm) == 0 {
                 bail!("Primary item {} is not in any option", p_itm);
@@ -101,7 +101,7 @@ impl<'a, R: Reduce> Preproc<'a, R> {
         (ps, ss)
     }
 
-    fn get_options(&mut self) -> (Vec<Uint>, Vec<Vec<OSpec<R>>>) {
+    fn get_options(&mut self) -> (Vec<Uint>, Vec<Vec<OData<R>>>) {
         // TODO: Verify that secondary are sequential like primary
         let (ps, ss) = self.get_items();
         let sd = if ss.is_empty() {
@@ -131,13 +131,13 @@ impl<'a, R: Reduce> Preproc<'a, R> {
         (idx, os)
     }
 
-    fn get_option(&mut self, p: Uint, sd: Uint) -> (Uint, Vec<OSpec<R>>) {
+    fn get_option(&mut self, p: Uint, sd: Uint) -> (Uint, Vec<OData<R>>) {
         let mut p = p - 1;
         while *self.problem.top(p) > 0 || *self.problem.dlink(p) < p {
             p -= 1;
         }
         let mut q = p + 1;
-        let mut o: Vec<OSpec<R>> = Vec::new();
+        let mut o: Vec<OData<R>> = Vec::new();
         loop {
             let itm = *self.problem.top(q);
             if itm < 0 {

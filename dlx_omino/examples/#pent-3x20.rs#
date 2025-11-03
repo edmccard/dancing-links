@@ -1,0 +1,45 @@
+extern crate dlx;
+
+use dlx::choose::*;
+use dlx::x::make_problem;
+use dlx::{OptOrder, Solver, Uint};
+
+use dlx_omino::*;
+
+struct Info;
+impl SpecInfo for Info {
+    type OData = Uint;
+    const PIECE_COUNT: usize = 12;
+    const CELL_COUNT: usize = 60;
+}
+
+fn main() {
+    let ps = pentominoes();
+    let bx = rectangle(3, 20);
+    let info = Info;
+
+    let mut os = Vec::new();
+    for (i, p) in ps.iter().enumerate() {
+        if i == 7 {
+            for o in p.transform(2)[0].all_options(7, &bx, &info) {
+                os.push(o);
+            }
+        } else {
+            for t in p.transform(255) {
+                for o in t.all_options(Uint(i), &bx, &info) {
+                    os.push(o);
+                }
+            }
+        }
+    }
+
+    let mut problem = make_problem(72, 0, &os, OptOrder::Seq);
+    let mut solver = Solver::new(&mut problem);
+    let mut chooser = mrv_chooser(prefer_any(), no_tiebreak());
+    while solver.next_solution(&mut chooser) {
+        let sol = solver.fmt_solution();
+        let grid = SolutionGrid::new(sol, &info, &os, &bx);
+        grid.colorize(&PALETTE_12);
+        println!();
+    }
+}

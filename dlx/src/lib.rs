@@ -103,19 +103,24 @@ pub trait Items {
     }
 }
 
+pub trait OptData: Clone + Copy + Default {
+    fn new_item(i: Uint) -> Self;
+    fn get_item(&self) -> Uint;
+}
+
 pub trait Opts {
-    type Spec: Default + Copy;
+    type Data: OptData;
 
     fn len(&mut self, i: Uint) -> &mut Int;
     fn top(&mut self, i: Uint) -> &mut Int;
     fn ulink(&mut self, i: Uint) -> &mut Uint;
     fn dlink(&mut self, i: Uint) -> &mut Uint;
 
-    fn set_data(&mut self, pk: Uint, s: Self::Spec) -> Uint;
-    fn get_spec_item(s: Self::Spec) -> Uint;
+    fn set_data(&mut self, pk: Uint, s: Self::Data) -> Uint;
+    fn get_data_item(s: Self::Data) -> Uint;
 
     fn init_links(
-        &mut self, n: Uint, np: Uint, order: OptOrder, os: &[Vec<Self::Spec>],
+        &mut self, n: Uint, np: Uint, order: OptOrder, os: &[Vec<Self::Data>],
     ) {
         let mut order = order;
         for i in (1 as Uint)..=n {
@@ -129,7 +134,7 @@ pub trait Opts {
             let mut k = 0;
             let mut has_primary = false;
             for node in opt {
-                if Self::get_spec_item(*node) < np {
+                if Self::get_data_item(*node) < np {
                     has_primary = true;
                 }
             }
@@ -227,7 +232,7 @@ impl<'a, P: Solve> Solver<'a, P> {
                     self.problem.enter_level(i, l, self.x[l as usize]);
                 }
                 self.profile[l as usize] += 1;
-                i = chooser.choose(&mut self.problem);
+                i = chooser.choose(self.problem);
                 // TODO: return option from choose
                 if self.problem.branch_degree(i) != 0 {
                     self.x[l as usize] = *self.problem.opts().dlink(i);

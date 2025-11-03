@@ -1,26 +1,40 @@
+extern crate dlx_omino;
+
 use std::time::Instant;
 
 use dlx::choose::*;
 use dlx::p::Preproc;
 use dlx::x::{Problem, make_problem};
-use dlx::{OptOrder, Solver};
+use dlx::{OptOrder, Solver, Uint};
 
-include!("./common/polyomino.rs");
+use dlx_omino::*;
+
+struct Info;
+impl SpecInfo for Info {
+    type OData = Uint;
+    const PIECE_COUNT: usize = 12;
+    const CELL_COUNT: usize = 60;
+}
 
 fn main() {
     let ps = pentominoes();
     let bx = rectangle(6, 10);
+    let info = Info;
 
     let mut os = Vec::new();
-    for p in 0..9 {
-        for base in ps[p].bases() {
-            os.extend(base.options(Uint(p), &bx));
-        }
-    }
-    os.extend(ps[9].options_within(9, 0, 0, 5, 3, &bx));
-    for p in 10..12 {
-        for base in ps[p].bases() {
-            os.extend(base.options(Uint(p), &bx));
+    for (i, p) in ps.iter().enumerate() {
+        if i == 9 {
+            for o in p.options_filter(9, &bx, &info, |pp| {
+                Bounds(0, 0, 5, 3).contains(&pp.bounds())
+            }) {
+                os.push(o);
+            }
+        } else {
+            for t in p.transform(255) {
+                for o in t.all_options(Uint(i), &bx, &info) {
+                    os.push(o);
+                }
+            }
         }
     }
 

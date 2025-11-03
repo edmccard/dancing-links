@@ -1,0 +1,11 @@
+[package]
+name = "dlx_omino"
+version = "0.1.0"
+
+authors.workspace = true
+edition.workspace = true
+repository.workspace = true
+license.workspace = true
+
+[dependencies]
+dlx = { path = "../dlx", version = "0.8.0" }
