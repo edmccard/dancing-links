@@ -169,24 +169,24 @@ pub trait SpecInfo {
     const CELL_COUNT: usize;
 
     fn cell_to_item(&self, i: Uint) -> Self::OData {
-        Self::OData::new_item(i + Uint(Self::PIECE_COUNT))
+        Self::OData::new_item(i)
     }
     fn item_to_cell(&self, i: Self::OData) -> Uint {
-        i.get_item() - Uint(Self::PIECE_COUNT)
+        i.get_item()
     }
     fn piece_to_item(&self, i: Uint) -> Self::OData {
-        Self::OData::new_item(i)
+        Self::OData::new_item(i + Uint(Self::CELL_COUNT))
     }
     // item_to_piece(i) must not equal item_to_cell(i)
     fn item_to_piece(&self, i: Self::OData) -> Uint {
-        i.get_item()
+        i.get_item() - Uint(Self::CELL_COUNT)
     }
     fn cell_range(&self) -> Range<Uint> {
-        (Self::PIECE_COUNT as Uint)
-            ..(Self::PIECE_COUNT + Self::CELL_COUNT) as Uint
+        0..(Self::CELL_COUNT as Uint)
     }
     fn piece_range(&self) -> Range<Uint> {
-        0..(Self::PIECE_COUNT as Uint)
+        (Self::CELL_COUNT as Uint)
+            ..(Self::CELL_COUNT + Self::PIECE_COUNT) as Uint
     }
 }
 
@@ -246,23 +246,19 @@ impl SolutionGrid {
     }
 
     pub fn print<T: AsRef<str>>(&self, names: &[T]) {
-        assert_eq!(names.len(), self.piece_count);
+        assert_eq!(names.len(), self.piece_count + 1);
         for line in &self.cells {
             println!(
                 "{}",
                 line.iter()
-                    .map(|c| if c.1 == 0 {
-                        " "
-                    } else {
-                        names[c.1 - 1].as_ref()
-                    })
+                    .map(|c| names[c.1 - 1].as_ref())
                     .collect::<String>()
             );
         }
     }
 
-    pub fn colorize(&self, palette: &[u32]) {
-        let mut names = Vec::new();
+    pub fn colorize(&self, space: char, palette: &[u32]) {
+        let mut names = vec![space.into()];
         for color in palette {
             let b = color & 0xff;
             let g = (color >> 8) & 0xff;

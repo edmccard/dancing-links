@@ -39,7 +39,7 @@ fn main() {
     while solver.next_solution(&mut chooser) {
         let sol = solver.fmt_solution();
         let grid = SolutionGrid::new(sol, &info, &os, &bx);
-        grid.colorize(&PALETTE_12);
+        grid.colorize(' ', &PALETTE_12);
         println!();
     }
 }
