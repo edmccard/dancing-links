@@ -205,7 +205,6 @@ pub fn rectangle(rows: usize, cols: usize) -> Shape {
 
 pub struct SolutionGrid {
     cells: Vec<Vec<(usize, usize)>>,
-    placements: Vec<Vec<(Uint, Uint)>>,
     piece_count: usize,
 }
 
@@ -242,7 +241,11 @@ impl SolutionGrid {
             idx += 1;
             placements.push(cs);
         }
-        SolutionGrid { cells, placements, piece_count: S::PIECE_COUNT }
+        SolutionGrid { cells, piece_count: S::PIECE_COUNT }
+    }
+
+    pub fn cells(&self) -> &[Vec<(usize, usize)>] {
+        &self.cells
     }
 
     pub fn print<T: AsRef<str>>(&self, names: &[T]) {
@@ -257,17 +260,63 @@ impl SolutionGrid {
         }
     }
 
-    pub fn colorize(&self, space: char, palette: &[u32]) {
+    pub fn colorize(&self, space: char, palette: &[(u8, u8, u8)]) {
         let mut names = vec![space.into()];
-        for color in palette {
-            let b = color & 0xff;
-            let g = (color >> 8) & 0xff;
-            let r = (color >> 16) & 0xff;
+        for (r, g, b) in palette {
             let name = format!("\u{1b}[38;2;{};{};{}m█", r, g, b);
             names.push(name);
         }
         self.print(&names);
         print!("\u{1b}[0m");
+    }
+}
+
+#[cfg(feature = "sdl2")]
+use sdl2::{pixels::Color, rect::Rect, render::Canvas, video::Window};
+
+#[cfg(feature = "sdl2")]
+pub fn draw_sol(
+    grid: &SolutionGrid, canvas: &mut Canvas<Window>, size: i32, x_off: i32,
+    y_off: i32, palette: &[(u8, u8, u8)],
+) {
+    let cells = grid.cells();
+    let mut tc = (0, 0);
+    for (y, row) in cells.iter().enumerate() {
+        for (x, c) in row.iter().enumerate() {
+            tc = (x_off + (x as i32) * size, y_off + (y as i32) * size);
+            if c.0 != 0 {
+                let (r, g, b) = palette[c.1 - 1];
+                canvas.set_draw_color(Color::RGB(r, g, b));
+                canvas
+                    .fill_rect(Rect::new(tc.0, tc.1, size as u32, size as u32))
+                    .unwrap();
+            }
+            if (x == 0 && c.0 != 0) || (x > 0 && c.0 != cells[y][x - 1].0) {
+                canvas.set_draw_color(Color::BLACK);
+                canvas.draw_line((tc.0, tc.1), (tc.0, tc.1 + size)).unwrap();
+            }
+            if (y == 0 && c.0 != 0) || (y > 0 && cells[y - 1][x].0 != c.0) {
+                canvas.set_draw_color(Color::BLACK);
+                canvas.draw_line((tc.0, tc.1), (tc.0 + size, tc.1)).unwrap();
+            }
+        }
+        if cells[y].last().unwrap().1 != 0 {
+            canvas.set_draw_color(Color::BLACK);
+            canvas
+                .draw_line((tc.0 + size, tc.1), (tc.0 + size, tc.1 + size))
+                .unwrap();
+        }
+    }
+    for (x, c) in cells.last().unwrap().iter().enumerate() {
+        if c.0 != 0 {
+            canvas.set_draw_color(Color::BLACK);
+            canvas
+                .draw_line(
+                    (x_off + (x as i32) * size, tc.1 + size),
+                    (x_off + ((x + 1) as i32) * size, tc.1 + size),
+                )
+                .unwrap();
+        }
     }
 }
 
@@ -288,15 +337,55 @@ pub fn pentominoes() -> Vec<Omino> {
     ]
 }
 
-pub const PALETTE_12: [u32; 12] = [
-    0xd8b2b2, 0xffbf7f, 0x7f3300, 0xe5e5f2, 0xffff00, 0xffcccc, 0x7f00cc,
-    0x4c66cc, 0x007f00, 0xff007f, 0x3fff3f, 0xf2f2bf,
+pub const PALETTE_12: [(u8, u8, u8); 12] = [
+    (216, 178, 178),
+    (255, 191, 127),
+    (127, 51, 0),
+    (229, 229, 242),
+    (255, 255, 0),
+    (255, 204, 204),
+    (127, 0, 204),
+    (76, 102, 204),
+    (0, 127, 0),
+    (255, 0, 127),
+    (63, 255, 63),
+    (242, 242, 191),
 ];
 
-pub const PALETTE_35: [u32; 35] = [
-    0x008080, 0xf802ff, 0xbc8f8e, 0x8f563e, 0xbfc0ff, 0xa52a2b, 0xa1d3a7,
-    0x80ff80, 0xdc6f94, 0xcb9e70, 0xda9818, 0x01bf02, 0x01ffff, 0x483d8c,
-    0xffff00, 0x7f8000, 0xf39908, 0xcc5d5b, 0xadd8e7, 0xffe5c5, 0xff02ff,
-    0x4682b4, 0x12ffab, 0xd3691d, 0xbfd648, 0xefdc01, 0xff3344, 0x3a4cc8,
-    0x0000ff, 0xff0100, 0xbcff0a, 0xffbf33, 0xffc0c1, 0xf29bd6, 0xfea079,
+pub const PALETTE_35: [(u8, u8, u8); 35] = [
+    (0, 128, 128),
+    (248, 2, 255),
+    (188, 143, 142),
+    (143, 86, 62),
+    (191, 192, 255),
+    (165, 42, 43),
+    (161, 211, 167),
+    (128, 255, 128),
+    (220, 111, 148),
+    (203, 158, 112),
+    (218, 152, 24),
+    (1, 191, 2),
+    (1, 255, 255),
+    (72, 61, 140),
+    (255, 255, 0),
+    (127, 128, 0),
+    (243, 153, 8),
+    (204, 93, 91),
+    (173, 216, 231),
+    (255, 229, 197),
+    (255, 2, 255),
+    (70, 130, 180),
+    (18, 255, 171),
+    (211, 105, 29),
+    (191, 214, 72),
+    (239, 220, 1),
+    (255, 51, 68),
+    (58, 76, 200),
+    (0, 0, 255),
+    (255, 1, 0),
+    (188, 255, 10),
+    (255, 191, 51),
+    (255, 192, 193),
+    (242, 155, 214),
+    (254, 160, 121),
 ];

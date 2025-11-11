@@ -1,6 +1,6 @@
 [package]
 name = "dlx"
-version = "0.8.1"
+version = "0.8.2"
 description = """
 An implementation of Knuth's 'Dancing Links' algorithms from TAoCP Section 7.2.2.1.
 """
@@ -22,7 +22,7 @@ num-traits = "0.2"
 
 [dev-dependencies]
 criterion = { version = "0.5", features = ["html_reports"] }
-dlx_omino = { path = "../dlx_omino", version = "0.1.0" }
+dlx_omino = { path = "../dlx_omino", version = "0.2.0" }
 
 [[bench]]
 name = "dance"

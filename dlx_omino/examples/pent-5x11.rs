@@ -1,8 +1,10 @@
 extern crate dlx;
 
+use std::time::SystemTime;
+
 use dlx::choose::*;
 use dlx::x::make_problem;
-use dlx::{OptOrder, Solver, Uint};
+use dlx::{OptOrder, Rng, Solver, Uint};
 
 use dlx_omino::*;
 
@@ -86,15 +88,21 @@ fn main() {
     let mut problem = make_problem(66, 2, &os, OptOrder::Seq);
     let mut solver = Solver::new(&mut problem);
     let mut chooser = mrv_chooser(prefer_any(), no_tiebreak());
+    let seed = SystemTime::now()
+        .duration_since(SystemTime::UNIX_EPOCH)
+        .unwrap()
+        .as_millis();
+    let mut rng = Rng::new(seed as u32);
     let mut sols = 0;
+    let mut display_sol = Vec::new();
     while solver.next_solution(&mut chooser) {
         sols += 1;
-        if sols == 1 {
-            println!("First solution:");
-            let sol = solver.fmt_solution();
-            let grid = SolutionGrid::new(sol, &info, &os, &bx);
-            grid.colorize(' ', &PALETTE_12[1..]);
+        if rng.uniform(sols) == 0 {
+            display_sol.clear();
+            display_sol.extend(solver.fmt_solution());
         }
     }
+    let grid = SolutionGrid::new(&display_sol, &info, &os, &bx);
+    grid.colorize(' ', &PALETTE_12[1..]);
     println!("Total solutions: {}", sols);
 }
