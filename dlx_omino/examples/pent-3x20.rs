@@ -61,8 +61,8 @@ fn main() {
     let mut y_off = 65;
     while solver.next_solution(&mut chooser) {
         let sol = solver.fmt_solution();
-        let grid = SolutionGrid::new(&sol, &info, &os, &bx);
-        dlx_omino::draw_sol(&grid, &mut canvas, 20, x_off, y_off, &PALETTE_12);
+        let grid = ShapeGrid::from_solution(&sol, &info, &os, &bx);
+        grid.draw(&mut canvas, 20, x_off, y_off, &PALETTE_12);
         y_off += 100;
     }
 

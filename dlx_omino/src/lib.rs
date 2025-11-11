@@ -2,6 +2,9 @@
 
 use std::ops::Range;
 
+#[cfg(feature = "sdl2")]
+use sdl2::{pixels::Color, rect::Rect, render::Canvas, video::Window};
+
 use dlx::{Int, OptData, Uint};
 
 pub type Cell = (Uint, Uint);
@@ -61,6 +64,10 @@ impl Omino {
 
     pub fn cell_at(&self, i: Uint) -> (Uint, Uint) {
         (self.c[i as usize].0, self.c[i as usize].1)
+    }
+
+    pub fn size(&self) -> Uint {
+        self.c.len() as Uint
     }
 
     const XFORMS: [XForm; 8] = [
@@ -203,15 +210,15 @@ pub fn rectangle(rows: usize, cols: usize) -> Shape {
     }
 }
 
-pub struct SolutionGrid {
+pub struct ShapeGrid {
     cells: Vec<Vec<(usize, usize)>>,
     piece_count: usize,
 }
 
-impl SolutionGrid {
-    pub fn new<S: SpecInfo>(
+impl ShapeGrid {
+    pub fn from_solution<S: SpecInfo>(
         sol: &[Int], info: &S, os: &[Vec<S::OData>], shape: &Shape,
-    ) -> SolutionGrid {
+    ) -> ShapeGrid {
         let mut cells = vec![
             vec![(0, 0); (shape.xmax + 1) as usize];
             (shape.ymax + 1) as usize
@@ -241,7 +248,7 @@ impl SolutionGrid {
             idx += 1;
             placements.push(cs);
         }
-        SolutionGrid { cells, piece_count: S::PIECE_COUNT }
+        ShapeGrid { cells, piece_count: S::PIECE_COUNT }
     }
 
     pub fn cells(&self) -> &[Vec<(usize, usize)>] {
@@ -269,53 +276,59 @@ impl SolutionGrid {
         self.print(&names);
         print!("\u{1b}[0m");
     }
-}
 
-#[cfg(feature = "sdl2")]
-use sdl2::{pixels::Color, rect::Rect, render::Canvas, video::Window};
-
-#[cfg(feature = "sdl2")]
-pub fn draw_sol(
-    grid: &SolutionGrid, canvas: &mut Canvas<Window>, size: i32, x_off: i32,
-    y_off: i32, palette: &[(u8, u8, u8)],
-) {
-    let cells = grid.cells();
-    let mut tc = (0, 0);
-    for (y, row) in cells.iter().enumerate() {
-        for (x, c) in row.iter().enumerate() {
-            tc = (x_off + (x as i32) * size, y_off + (y as i32) * size);
-            if c.0 != 0 {
-                let (r, g, b) = palette[c.1 - 1];
-                canvas.set_draw_color(Color::RGB(r, g, b));
+    #[cfg(feature = "sdl2")]
+    pub fn draw(
+        &self, canvas: &mut Canvas<Window>, size: i32, x_off: i32, y_off: i32,
+        palette: &[(u8, u8, u8)],
+    ) {
+        let cells = &self.cells;
+        let mut tc = (0, 0);
+        for (y, row) in cells.iter().enumerate() {
+            for (x, c) in row.iter().enumerate() {
+                tc = (x_off + (x as i32) * size, y_off + (y as i32) * size);
+                if c.0 != 0 {
+                    let (r, g, b) = palette[c.1 - 1];
+                    canvas.set_draw_color(Color::RGB(r, g, b));
+                    canvas
+                        .fill_rect(Rect::new(
+                            tc.0,
+                            tc.1,
+                            size as u32,
+                            size as u32,
+                        ))
+                        .unwrap();
+                }
+                if (x == 0 && c.0 != 0) || (x > 0 && c.0 != cells[y][x - 1].0) {
+                    canvas.set_draw_color(Color::BLACK);
+                    canvas
+                        .draw_line((tc.0, tc.1), (tc.0, tc.1 + size))
+                        .unwrap();
+                }
+                if (y == 0 && c.0 != 0) || (y > 0 && cells[y - 1][x].0 != c.0) {
+                    canvas.set_draw_color(Color::BLACK);
+                    canvas
+                        .draw_line((tc.0, tc.1), (tc.0 + size, tc.1))
+                        .unwrap();
+                }
+            }
+            if cells[y].last().unwrap().1 != 0 {
+                canvas.set_draw_color(Color::BLACK);
                 canvas
-                    .fill_rect(Rect::new(tc.0, tc.1, size as u32, size as u32))
+                    .draw_line((tc.0 + size, tc.1), (tc.0 + size, tc.1 + size))
                     .unwrap();
             }
-            if (x == 0 && c.0 != 0) || (x > 0 && c.0 != cells[y][x - 1].0) {
-                canvas.set_draw_color(Color::BLACK);
-                canvas.draw_line((tc.0, tc.1), (tc.0, tc.1 + size)).unwrap();
-            }
-            if (y == 0 && c.0 != 0) || (y > 0 && cells[y - 1][x].0 != c.0) {
-                canvas.set_draw_color(Color::BLACK);
-                canvas.draw_line((tc.0, tc.1), (tc.0 + size, tc.1)).unwrap();
-            }
         }
-        if cells[y].last().unwrap().1 != 0 {
-            canvas.set_draw_color(Color::BLACK);
-            canvas
-                .draw_line((tc.0 + size, tc.1), (tc.0 + size, tc.1 + size))
-                .unwrap();
-        }
-    }
-    for (x, c) in cells.last().unwrap().iter().enumerate() {
-        if c.0 != 0 {
-            canvas.set_draw_color(Color::BLACK);
-            canvas
-                .draw_line(
-                    (x_off + (x as i32) * size, tc.1 + size),
-                    (x_off + ((x + 1) as i32) * size, tc.1 + size),
-                )
-                .unwrap();
+        for (x, c) in cells.last().unwrap().iter().enumerate() {
+            if c.0 != 0 {
+                canvas.set_draw_color(Color::BLACK);
+                canvas
+                    .draw_line(
+                        (x_off + (x as i32) * size, tc.1 + size),
+                        (x_off + ((x + 1) as i32) * size, tc.1 + size),
+                    )
+                    .unwrap();
+            }
         }
     }
 }
@@ -352,9 +365,49 @@ pub const PALETTE_12: [(u8, u8, u8); 12] = [
     (242, 242, 191),
 ];
 
+pub fn hexominoes() -> Vec<Omino> {
+    vec![
+        Omino::new(&[(0, 0), (0, 1), (0, 2), (0, 3), (0, 4), (0, 5)]), //
+        Omino::new(&[(0, 0), (1, 0), (0, 1), (0, 2), (0, 3), (0, 4)]), //
+        Omino::new(&[(0, 0), (0, 1), (1, 1), (0, 2), (0, 3), (0, 4)]), //
+        Omino::new(&[(0, 0), (0, 1), (0, 2), (1, 2), (0, 3), (0, 4)]), //
+        Omino::new(&[(1, 0), (0, 1), (1, 1), (0, 2), (0, 3), (0, 4)]), //
+        Omino::new(&[(0, 0), (1, 0), (0, 1), (1, 1), (0, 2), (0, 3)]), //
+        Omino::new(&[(0, 0), (1, 0), (0, 1), (0, 2), (1, 2), (0, 3)]), //
+        Omino::new(&[(0, 0), (1, 0), (0, 1), (0, 2), (0, 3), (1, 3)]), //
+        Omino::new(&[(0, 0), (0, 1), (1, 1), (0, 2), (1, 2), (0, 3)]), //
+        Omino::new(&[(0, 0), (1, 0), (2, 0), (0, 1), (0, 2), (0, 3)]), //
+        Omino::new(&[(0, 0), (0, 1), (1, 1), (2, 1), (0, 2), (0, 3)]), //
+        Omino::new(&[(0, 0), (1, 0), (2, 0), (1, 1), (1, 2), (1, 3)]), //
+        Omino::new(&[(1, 0), (2, 0), (0, 1), (1, 1), (1, 2), (1, 3)]), //
+        Omino::new(&[(1, 0), (2, 0), (1, 1), (0, 2), (1, 2), (1, 3)]), //
+        Omino::new(&[(1, 0), (2, 0), (1, 1), (1, 2), (0, 3), (1, 3)]), //
+        Omino::new(&[(1, 0), (1, 1), (2, 1), (0, 2), (1, 2), (1, 3)]), //
+        Omino::new(&[(1, 0), (0, 1), (1, 1), (2, 1), (1, 2), (1, 3)]), //
+        Omino::new(&[(1, 0), (0, 1), (1, 1), (2, 1), (0, 2), (0, 3)]), //
+        Omino::new(&[(1, 0), (0, 1), (1, 1), (0, 2), (0, 3), (1, 3)]), //
+        Omino::new(&[(1, 0), (1, 1), (0, 2), (1, 2), (0, 3), (0, 4)]), //
+        Omino::new(&[(1, 0), (0, 1), (1, 1), (0, 2), (1, 2), (0, 3)]), //
+        Omino::new(&[(0, 0), (1, 0), (0, 1), (1, 1), (0, 2), (1, 2)]), //
+        Omino::new(&[(2, 0), (0, 1), (1, 1), (2, 1), (1, 2), (1, 3)]), //
+        Omino::new(&[(0, 0), (1, 0), (2, 0), (1, 1), (2, 1), (1, 2)]), //
+        Omino::new(&[(2, 0), (1, 1), (2, 1), (0, 2), (1, 2), (1, 3)]), //
+        Omino::new(&[(2, 0), (0, 1), (1, 1), (2, 1), (0, 2), (0, 3)]), //
+        Omino::new(&[(1, 0), (2, 0), (0, 1), (1, 1), (0, 2), (0, 3)]), //
+        Omino::new(&[(0, 0), (1, 0), (2, 0), (0, 1), (2, 1), (0, 2)]), //
+        Omino::new(&[(0, 0), (2, 0), (0, 1), (1, 1), (2, 1), (0, 2)]), //
+        Omino::new(&[(0, 0), (2, 0), (0, 1), (1, 1), (2, 1), (1, 2)]), //
+        Omino::new(&[(1, 0), (2, 0), (1, 1), (0, 2), (1, 2), (0, 3)]), //
+        Omino::new(&[(0, 0), (0, 1), (1, 1), (0, 2), (1, 2), (2, 2)]), //
+        Omino::new(&[(1, 0), (0, 1), (1, 1), (2, 1), (0, 2), (1, 2)]), //
+        Omino::new(&[(2, 0), (0, 1), (1, 1), (2, 1), (0, 2), (1, 2)]), //
+        Omino::new(&[(2, 0), (1, 1), (2, 1), (0, 2), (1, 2), (0, 3)]), //
+    ]
+}
+
 pub const PALETTE_35: [(u8, u8, u8); 35] = [
     (0, 128, 128),
-    (248, 2, 255),
+    (248, 2, 142),
     (188, 143, 142),
     (143, 86, 62),
     (191, 192, 255),

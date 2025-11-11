@@ -102,7 +102,7 @@ fn main() {
             display_sol.extend(solver.fmt_solution());
         }
     }
-    let grid = SolutionGrid::new(&display_sol, &info, &os, &bx);
+    let grid = ShapeGrid::from_solution(&display_sol, &info, &os, &bx);
     grid.colorize(' ', &PALETTE_12[1..]);
     println!("Total solutions: {}", sols);
 }
